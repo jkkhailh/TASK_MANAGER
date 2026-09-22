@@ -3,7 +3,7 @@ Tài liệu quy chuẩn kỹ thuật và quy tắc phát triển giao diện ng�
 
 ---
 
-# QUY CHUẨN GIAO DIỆN MOBILE (MOBILE UI/UX STANDARDS)
+# I. QUY CHUẨN GIAO DIỆN MOBILE (MOBILE UI/UX STANDARDS)
 
 Bắt buộc tuân thủ 100% khi phát triển hoặc chỉnh sửa bất kỳ màn hình nào trên hệ thống (`index.html`, `internal-tasks.html`, `inventory.html`, `request.html`, `categories.html`, `dashboard.html`):
 
@@ -73,3 +73,34 @@ Bắt buộc tuân thủ 100% khi phát triển hoặc chỉnh sửa bất kỳ 
   - Người dùng chuyển đổi giữa các phân hệ thông qua nút bấm Logo / "MENU ▾" (`#brandMenuTrigger`) để mở danh mục phân hệ BOPP HUB (`#systemAppMenu`).
   - Tiết kiệm 40px - 80px chiều dọc màn hình, nhường trọn vẹn không gian hiển thị cho thanh tìm kiếm, bộ lọc và danh sách dữ liệu chính.
 
+---
+
+# II. QUY CHUẨN CẤU TRÚC THƯ MỤC & QUẢN LÝ FILE TEST, CHECK, SCRIPT PHỤ TRỢ (TOOLS & SCRIPTS STANDARDS)
+
+Bắt buộc tuân thủ 100% khi phát triển, gỡ lỗi (debug) hoặc bảo trì hệ thống:
+
+## 1. Nguyên Tắc Thư Mục Gốc Sạch (Clean Root Directory)
+- **Quy định**: Thư mục gốc (`/home/khailh/MAINTENANCE_DB/`) **chỉ được chứa** các tệp tin vận hành chính thức của hệ thống (Production Runtime Files) và tài liệu cốt lõi:
+  - Backend runtime: `server.py`, `database.py`, `auth.py`, `sync_service.py`, `nas_storage.py`, `websocket_manager.py`.
+  - Cron & Deployment scripts: `run_init_db.py`, `run_inventory_sync.py`, `run_sync_works.py`, `start_server.sh`, `start_server.bat`, `deploy_ubuntu.sh`, `bopp-maintenance.service`.
+  - Cấu hình & Tài liệu: `requirements.txt`, `.gitignore`, `.env.example`, `AGENTS.md`, `GEMINI.md`, `CAU_TRUC_CSDL_BAO_DUONG_EM.md`, `HUONG_DAN_TRIEN_KHAI_UBUNTU.md`.
+  - Các thư mục chuẩn: `static/`, `nas_storage/`, `tests_and_tools/`, `venv/`.
+- **Tuyệt đối cấm**: Không tự ý tạo, lưu trữ các file `test_*.py`, `check_*.py`, `patch_*.py`, `inspect_*.py`, `find_*.py` hoặc các file kết quả tạm `*.json`, `*.log` ở thư mục gốc.
+
+## 2. Thư Mục Riêng Cho Công Cụ Kiểm Tra & Thử Nghiệm (`tests_and_tools/`)
+- **Vị trí bắt buộc**: Mọi script kiểm thử tính năng mới, kiểm tra cú pháp, gỡ lỗi database, thăm dò bảng dữ liệu ERP SQL Server, script patch vá lỗi hoặc file JSON kết quả **bắt buộc phải nằm trong thư mục `tests_and_tools/`**.
+- **Quy chuẩn import module từ thư mục gốc**:
+  Mọi script chạy trong `tests_and_tools/` nếu cần import các module chính (`database`, `server`, `auth`, `sync_service`, `nas_storage`, `websocket_manager`) phải bổ sung đoạn code chuẩn hóa đường dẫn ở đầu file:
+  ```python
+  import os
+  import sys
+  sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+  ```
+- **Quy chuẩn thực thi lệnh (Execution Rule)**:
+  Khi chạy các file kiểm tra/thử nghiệm, luôn chạy với đường dẫn rõ ràng từ thư mục gốc:
+  ```bash
+  venv/bin/python tests_and_tools/<ten_script>.py
+  # hoặc
+  python3 tests_and_tools/<ten_script>.py
+  ```
+- **Dọn dẹp**: Các file nháp tạm thời phục vụ gỡ lỗi 1 lần không cần lưu lại lịch sử Git nên đưa vào `scratch/` (đã được ignore bởi Git).
