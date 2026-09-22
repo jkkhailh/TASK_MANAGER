@@ -1647,8 +1647,19 @@ def list_orders(
 
         total_pages = (total_count + limit - 1) // limit if total_count > 0 else 1
 
+        stats = {
+            "total_orders": total_orders_cnt,
+            "erp_result_count": erp_res_cnt,
+            "erp_result_percent": erp_res_pct,
+            "staff_total_tasks": tot_tasks,
+            "staff_completed_tasks": comp_tasks,
+            "staff_percent": staff_overall_pct
+        }
+
         return {
+            "items": orders,
             "orders": orders,
+            "stats": stats,
             "total": total_count,
             "page": page,
             "limit": limit,
@@ -1841,6 +1852,40 @@ def create_inventory_request(
 # -------------------------------------------------------------------------
 # EMPLOYEES DIRECTORY API (CƠ ĐIỆN & KỸ THUẬT)
 # -------------------------------------------------------------------------
+
+
+def normalize_department_name(c, dept: Optional[str]) -> str:
+    if not dept or not dept.strip():
+        return "KỸ THUẬT"
+    dept_clean = dept.strip()
+    try:
+        c.execute("SELECT DepartName FROM CL_tblDepartment WHERE DepartID = ? OR DepartName = ?", (dept_clean, dept_clean))
+        row = c.fetchone()
+        if row and row[0]:
+            return row[0]
+    except Exception:
+        pass
+    return dept_clean
+
+def normalize_machine_id(c, mac: Optional[str]) -> str:
+    if not mac or not mac.strip():
+        return ""
+    mac_clean = mac.strip()
+    try:
+        c.execute("SELECT MachineID FROM CL_tblMacList WHERE MachineID = ? OR MachineText = ?", (mac_clean, mac_clean))
+        row = c.fetchone()
+        if row and row[0]:
+            return row[0]
+    except Exception:
+        pass
+    return mac_clean
+
+def generate_next_task_code(c, now) -> str:
+    prefix = f"IWO-{now.strftime('%y%m')}"
+    c.execute("SELECT COUNT(*) FROM internal_work_orders WHERE TaskCode LIKE ?", (f"{prefix}%",))
+    seq = (c.fetchone()[0] or 0) + 1
+    return f"{prefix}-{seq:04d}"
+
 
 @app.get("/api/internal-tasks/employees")
 def get_internal_employees(department: Optional[str] = None):
@@ -3402,7 +3447,7 @@ def get_internal_task_detail(task_id: int):
 
         # Lấy danh sách hạng mục con
         c.execute("""
-            SELECT id, TaskID, TemplateID, ItemOrder, ItemTitle, AssignedEmpID, AssignedTo, Department, Status, CompletedAt, CompletedBy, Note, SampleImageUrl, SampleImagePath, StandardGuideline, CreatedAt, UpdatedAt
+            SELECT id, TaskID, TemplateID, ItemOrder, ItemTitle, AssignedEmpID, AssignedTo, Department, Status, CompletedAt, CompletedBy, Note, SampleImageUrl, SampleImagePath, StandardGuideline, HasIssue, CreatedAt, UpdatedAt
             FROM internal_task_items
             WHERE TaskID = ?
             ORDER BY ItemOrder ASC, id ASC
