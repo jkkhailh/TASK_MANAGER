@@ -1419,6 +1419,9 @@ def get_stats():
 def list_orders(
     search: Optional[str] = None,
     status: Optional[str] = "all",
+    percent: Optional[str] = "all",
+    percent_type: Optional[str] = "staff",
+    month: Optional[str] = None,
     page: int = Query(1, ge=1),
     limit: int = Query(25, ge=1, le=100)
 ):
@@ -1428,11 +1431,12 @@ def list_orders(
         where_clauses = []
         params = []
 
+        if month and month.strip() and month.lower() != "all":
+            where_clauses.append("strftime('%Y-%m', o1.EntryDate) = ?")
+            params.append(month.strip())
+
         if status == "open":
             where_clauses.append("(o1.Closed = 0 OR o1.Closed IS NULL)")
-        elif status == "closed":
-            where_clauses.append("o1.Closed = 1")
-
         elif status == "closed":
             where_clauses.append("o1.Closed = 1")
 
@@ -1543,11 +1547,6 @@ def list_orders(
                     WHERE mti.EntryID = o1.EntryID
                 ) AS PhotoCount,
                 (
-                (
-                    SELECT COUNT(*)
-                    FROM maintenance_machine_tasks mmt
-                    WHERE mmt.EntryID = o1.EntryID
-                ) AS TotalTasks,
                     SELECT COUNT(*)
                     FROM maintenance_machine_tasks mmt
                     WHERE mmt.EntryID = o1.EntryID
@@ -1794,6 +1793,7 @@ def create_inventory_request(
         
         prefix = f"REQ-{now.strftime('%y%m')}"
         c.execute("SELECT COUNT(*) FROM warehouse_issue_requests WHERE RequestCode LIKE ?", (f"{prefix}%",))
+        seq = (c.fetchone()[0] or 0) + 1
         req_code = f"{prefix}-{seq:04d}"
 
         requester = payload.RequestedBy or (current_user["full_name"] if current_user else "Kỹ thuật viên")
@@ -2649,65 +2649,6 @@ def delete_task_item(item_id: int):
         conn.close()
 
 
-@app.get("/api/internal-tasks/{task_id}")
-def get_internal_task_detail(task_id: int):
-    """Chi tiết công việc nội bộ kèm hình ảnh và danh sách hạng mục con"""
-    conn = get_connection()
-    c = conn.cursor()
-    try:
-        c.execute("SELECT * FROM internal_work_orders WHERE id = ?", (task_id,))
-        task = c.fetchone()
-        if not task:
-            raise HTTPException(status_code=404, detail="Không tìm thấy công việc.")
-
-        task_dict = dict(task)
-        c.execute("SELECT id, ImageType, FileUrl, FileName, Caption, UploadedBy, UploadedAt FROM internal_work_images WHERE TaskID = ? ORDER BY id ASC", (task_id,))
-        task_dict['images'] = [dict(im) for im in c.fetchall()]
-
-        # Lấy danh sách hạng mục con
-        c.execute("""
-            SELECT id, TaskID, TemplateID, ItemOrder, ItemTitle, AssignedEmpID, AssignedTo, Department, Status, CompletedAt, CompletedBy, Note, SampleImageUrl, SampleImagePath, StandardGuideline, CreatedAt, UpdatedAt
-            FROM internal_task_items
-            WHERE TaskID = ?
-            ORDER BY ItemOrder ASC, id ASC
-        """, (task_id,))
-        items = [dict(r) for r in c.fetchall()]
-
-        # Gắn ảnh thực tế mới nhất vào từng item nếu có
-        images_by_item = {}
-        for im in task_dict['images']:
-            t_item_id = im.get('TaskItemID')
-            if t_item_id:
-                images_by_item[t_item_id] = im
-
-        for it in items:
-            it_img = images_by_item.get(it['id'])
-            if it_img:
-                it['ActualImageUrl'] = it_img.get('FileUrl')
-                it['ActualImageId'] = it_img.get('id')
-                it['ActualImageUploadedAt'] = it_img.get('UploadedAt', '')
-            else:
-                it['ActualImageUrl'] = None
-                it['ActualImageId'] = None
-
-        task_dict['items'] = items
-
-        total_items = len(items)
-        comp_items = sum(1 for it in items if it['Status'] == 'COMPLETED')
-        task_dict['items_count'] = total_items
-        task_dict['completed_items_count'] = comp_items
-        task_dict['progress_percent'] = int(round((comp_items / total_items) * 100)) if total_items > 0 else (100 if task_dict['Status'] == 'COMPLETED' else 0)
-
-        # Lấy thêm thông tin template và ảnh mẫu nếu có
-        if task_dict.get("RecurringTemplateID"):
-            c.execute("SELECT TemplateCode, CycleType, IntervalDays, MonthlyDays, AutoRecreateOnComplete, IsActive, SampleImageUrl, SampleImagePath FROM internal_task_recurring_templates WHERE id = ?", (task_dict["RecurringTemplateID"],))
-            tpl = c.fetchone()
-            if tpl:
-                task_dict["template"] = dict(tpl)
-
-        return task_dict
-    finally:
-        conn.close()
 
 
 @app.get("/api/system/email-settings")
@@ -3436,28 +3377,73 @@ def update_internal_task_priority(task_id: int, payload: TaskPriorityUpdate, use
         conn.close()
 
 
-        c.execute("""
-            INSERT INTO internal_work_orders
-            (TaskCode, TaskTitle, TaskType, MachineID, Priority, Department, RequesterName,
-             RequesterEmail, RequesterPhone, AssignedTo,
-             Description, Status, ReportedAt, CreatedBy, CreatedAt, UpdatedAt,
-             RecurringTemplateID, CycleInfo, RecurringCount, NextDueDate, NextTaskIdCreated)
-            VALUES (?, ?, 'DEPT_REQUEST', ?, ?, ?, ?, ?, ?, '', ?, 'PENDING', ?, ?, ?, ?, NULL, NULL, 1, NULL, 0)
-        """, (
-            task_code, payload.TaskTitle.strip(), resolved_machine,
-            payload.Priority.upper() if payload.Priority else 'NORMAL',
-            resolved_dept, payload.RequesterName.strip(),
-            payload.RequesterEmail.strip() if payload.RequesterEmail else '',
-            payload.RequesterPhone.strip() if payload.RequesterPhone else '',
-            payload.Description.strip() if payload.Description else '',
-            now_str, creator, now_str, now_str
-        ))
-        task_id = c.lastrowid
+
 
 
 # -------------------------------------------------------------------------
 # INTERNAL WORK ORDERS LIST & CRUD
 # -------------------------------------------------------------------------
+
+
+@app.get("/api/internal-tasks/{task_id}")
+def get_internal_task_detail(task_id: int):
+    """Chi tiết công việc nội bộ kèm hình ảnh và danh sách hạng mục con"""
+    conn = get_connection()
+    c = conn.cursor()
+    try:
+        c.execute("SELECT * FROM internal_work_orders WHERE id = ?", (task_id,))
+        task = c.fetchone()
+        if not task:
+            raise HTTPException(status_code=404, detail="Không tìm thấy công việc.")
+
+        task_dict = dict(task)
+        c.execute("SELECT id, TaskID, TaskItemID, ImageType, FileUrl, FileName, Caption, UploadedBy, UploadedAt FROM internal_work_images WHERE TaskID = ? ORDER BY id ASC", (task_id,))
+        task_dict['images'] = [dict(im) for im in c.fetchall()]
+
+        # Lấy danh sách hạng mục con
+        c.execute("""
+            SELECT id, TaskID, TemplateID, ItemOrder, ItemTitle, AssignedEmpID, AssignedTo, Department, Status, CompletedAt, CompletedBy, Note, SampleImageUrl, SampleImagePath, StandardGuideline, CreatedAt, UpdatedAt
+            FROM internal_task_items
+            WHERE TaskID = ?
+            ORDER BY ItemOrder ASC, id ASC
+        """, (task_id,))
+        items = [dict(r) for r in c.fetchall()]
+
+        # Gắn ảnh thực tế mới nhất vào từng item nếu có
+        images_by_item = {}
+        for im in task_dict['images']:
+            t_item_id = im.get('TaskItemID')
+            if t_item_id:
+                images_by_item[t_item_id] = im
+
+        for it in items:
+            it_img = images_by_item.get(it['id'])
+            if it_img:
+                it['ActualImageUrl'] = it_img.get('FileUrl')
+                it['ActualImageId'] = it_img.get('id')
+                it['ActualImageUploadedAt'] = it_img.get('UploadedAt', '')
+            else:
+                it['ActualImageUrl'] = None
+                it['ActualImageId'] = None
+
+        task_dict['items'] = items
+
+        total_items = len(items)
+        comp_items = sum(1 for it in items if it['Status'] == 'COMPLETED')
+        task_dict['items_count'] = total_items
+        task_dict['completed_items_count'] = comp_items
+        task_dict['progress_percent'] = int(round((comp_items / total_items) * 100)) if total_items > 0 else (100 if task_dict['Status'] == 'COMPLETED' else 0)
+
+        # Lấy thêm thông tin template và ảnh mẫu nếu có
+        if task_dict.get("RecurringTemplateID"):
+            c.execute("SELECT TemplateCode, CycleType, IntervalDays, MonthlyDays, AutoRecreateOnComplete, IsActive, SampleImageUrl, SampleImagePath FROM internal_task_recurring_templates WHERE id = ?", (task_dict["RecurringTemplateID"],))
+            tpl = c.fetchone()
+            if tpl:
+                task_dict["template"] = dict(tpl)
+
+        return task_dict
+    finally:
+        conn.close()
 
 @app.get("/api/internal-tasks")
 def get_internal_tasks(
@@ -3854,76 +3840,6 @@ def normalize_machine_id(c, raw_val: Optional[str]) -> str:
         if row and row[0]:
             return row[0]
     return val
-
-@app.get("/api/internal-tasks/{task_id}")
-def get_internal_task_detail(task_id: int):
-    """Chi tiết công việc nội bộ kèm hình ảnh và danh sách hạng mục con"""
-    conn = get_connection()
-    c = conn.cursor()
-    try:
-        c.execute("""
-            SELECT w.*, COALESCE(mac.MachineText, w.MachineID) AS MachineName
-            FROM internal_work_orders w
-            LEFT JOIN CL_tblMacList mac ON w.MachineID = mac.MachineID
-            WHERE w.id = ?
-        """, (task_id,))
-        task = c.fetchone()
-        if not task:
-            raise HTTPException(status_code=404, detail="Không tìm thấy công việc.")
-
-        task_dict = dict(task)
-        c.execute("SELECT id, TaskID, TaskItemID, ImageType, FileUrl, FileName, Caption, UploadedBy, UploadedAt FROM internal_work_images WHERE TaskID = ? ORDER BY id ASC", (task_id,))
-        task_dict['images'] = [dict(im) for im in c.fetchall()]
-
-        # Lấy danh sách hạng mục con
-        c.execute("""
-            SELECT id, TaskID, TemplateID, ItemOrder, ItemTitle, AssignedEmpID, AssignedTo, Department, Status, CompletedAt, CompletedBy, Note, SampleImageUrl, SampleImagePath, StandardGuideline, CreatedAt, UpdatedAt
-            FROM internal_task_items
-            WHERE TaskID = ?
-            ORDER BY ItemOrder ASC, id ASC
-        """, (task_id,))
-        items = [dict(r) for r in c.fetchall()]
-
-        # Gắn ảnh thực tế mới nhất vào từng item nếu có
-        images_by_item = {}
-        for im in task_dict['images']:
-            t_item_id = im.get('TaskItemID')
-            if t_item_id:
-                images_by_item[t_item_id] = im
-
-            values.append(payload.DowntimeMinutes)
-
-        if payload.Priority is not None:
-            fields.append("Priority = ?")
-            values.append(payload.Priority.upper())
-
-        if payload.NextDueDate is not None:
-            fields.append("NextDueDate = ?")
-            values.append(payload.NextDueDate)
-
-        values.append(task_id)
-        sql = f"UPDATE internal_work_orders SET {', '.join(fields)} WHERE id = ?"
-        c.execute(sql, values)
-        conn.commit()
-
-        # Gửi thông báo thời gian thực qua WebSocket
-        try:
-            ws_manager.broadcast_sync("TASK_UPDATED", {"task_id": task_id, "status": payload.Status if payload.Status else old_status})
-        except Exception as ws_err:
-            logger.warning(f"Lỗi gửi WebSocket broadcast: {ws_err}")
-
-        msg = "Cập nhật công việc thành công."
-        if next_spawned:
-            msg = f"Đã hoàn tất nghiệm thu! Tự động khởi tạo chu kỳ tiếp theo: {next_spawned['task_code']} (Hạn: {next_spawned['next_due_date']})."
-
-        return {
-            "status": "success",
-            "message": msg,
-            "next_task": next_spawned
-        }
-    finally:
-        conn.close()
-
 
 @app.post("/api/public/requests")
 def create_public_task(
@@ -4843,7 +4759,7 @@ def get_categories_machines():
     c = conn.cursor()
     try:
         c.execute("""
-            SELECT MachineID, MachineText, DepartID, FactoryID, IsClosed
+            SELECT MachineID, MachineText, MacCateID, MacLineID, DepartID, DepartName, ModelID, IsClosed
             FROM CL_tblMacList
             WHERE IsClosed = 0 OR IsClosed IS NULL
             ORDER BY MachineID ASC
