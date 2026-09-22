@@ -1,0 +1,3675 @@
+/**
+ * BOPP EM Maintenance - Quản Lý Công Việc Nội Bộ & Sự Cố Phát Sinh
+ * File: static/internal-tasks.js
+ */
+
+// State
+let allTasks = [];
+let filteredTasks = [];
+let activeFilterType = 'all';
+let currentEditingTask = null;
+let selectedPhotoFile = null;
+
+// Recurring templates & items state (Master-Detail layout)
+let allRecurringTemplates = [];
+let filteredRecurringTemplates = [];
+let allRecurringItems = [];
+let filteredRecurringItems = [];
+let selectedRecurringTplId = null; // null = "Tất cả"
+let itemsByRecurringTemplate = new Map();
+let currentTabMode = 'active'; // 'active' | 'recurring'
+let newTaskCycleType = 'INTERVAL_DAYS'; // 'INTERVAL_DAYS' | 'MONTHLY_DAYS'
+let tplModalCycleType = 'INTERVAL_DAYS'; // 'INTERVAL_DAYS' | 'MONTHLY_DAYS'
+
+// Active tasks view mode (excel table view)
+let activeTaskViewMode = 'excel';
+let taskSortColumn = 'ReportedAt';
+let taskSortDirection = 'desc';
+
+// Employees directory state (Cơ điện & Kỹ thuật)
+let allEmployees = [];
+let groupedEmployees = {};
+
+// =========================================================================
+// APPLICATION INITIALIZATION (Supports both DOMContentLoaded and post-load)
+// =========================================================================
+function initApp() {
+  initUserProfile();
+  initTaskStatsState();
+  loadEmployees();
+  loadTasks();
+  loadRecurringTemplates();
+  setupSearchDebounce();
+  setupRecurringSearchDebounce();
+  if (typeof switchActiveTaskViewMode === 'function') {
+    switchActiveTaskViewMode('excel');
+  }
+}
+
+async function loadEmployees() {
+  try {
+    const res = await fetch('/api/internal-tasks/employees');
+    if (!res.ok) throw new Error('Không thể tải danh bạ nhân sự');
+    const data = await res.json();
+    allEmployees = data.employees || [];
+    groupedEmployees = data.grouped || {};
+    populateEmployeeDropdowns();
+  } catch (err) {
+    console.warn('Lỗi tải nhân sự:', err);
+  }
+}
+
+function buildEmployeeSelectOptions(selectedValue = '', placeholder = '-- Chọn nhân viên thực hiện --') {
+  let html = `<option value="">${placeholder}</option>`;
+  
+  const codien = groupedEmployees['Cơ điện'] || [];
+  if (codien.length > 0) {
+    html += `<optgroup label="⚡ Bộ Phận Cơ Điện (${codien.length} nhân viên)">`;
+    for (const emp of codien) {
+      const isSel = (selectedValue === emp.EmpName || selectedValue === emp.EmpID) ? 'selected' : '';
+      const pos = emp.PositionText ? ` - ${emp.PositionText}` : '';
+      html += `<option value="${escapeHtml(emp.EmpName)}" data-empid="${escapeHtml(emp.EmpID)}" data-dept="Cơ điện" ${isSel}>${escapeHtml(emp.EmpName)}${escapeHtml(pos)}</option>`;
+    }
+    html += `</optgroup>`;
+  }
+
+  const kythuat = groupedEmployees['Kỹ thuật'] || [];
+  if (kythuat.length > 0) {
+    html += `<optgroup label="🛠️ Phòng Kỹ Thuật (${kythuat.length} nhân sự)">`;
+    for (const emp of kythuat) {
+      const isSel = (selectedValue === emp.EmpName || selectedValue === emp.EmpID) ? 'selected' : '';
+      const pos = emp.PositionText ? ` - ${emp.PositionText}` : '';
+      html += `<option value="${escapeHtml(emp.EmpName)}" data-empid="${escapeHtml(emp.EmpID)}" data-dept="Kỹ thuật" ${isSel}>${escapeHtml(emp.EmpName)}${escapeHtml(pos)}</option>`;
+    }
+    html += `</optgroup>`;
+  }
+
+  return html;
+}
+
+function populateEmployeeDropdowns() {
+  const newAssignee = document.getElementById('newTaskAssignee');
+  if (newAssignee) newAssignee.innerHTML = buildEmployeeSelectOptions(newAssignee.value, '-- Chọn kỹ thuật viên phụ trách --');
+
+  const tplAssignee = document.getElementById('tplAssignee');
+  if (tplAssignee) tplAssignee.innerHTML = buildEmployeeSelectOptions(tplAssignee.value, '-- Chọn kỹ thuật viên phụ trách --');
+
+  const detailAssignee = document.getElementById('modalDetailAssignedTo');
+  if (detailAssignee) detailAssignee.innerHTML = buildEmployeeSelectOptions(detailAssignee.value, '-- Chọn kỹ thuật viên --');
+
+  const detailNewItemAssignee = document.getElementById('detailNewItemAssignee');
+  if (detailNewItemAssignee) detailNewItemAssignee.innerHTML = buildEmployeeSelectOptions('', '-- Chọn nhân viên thực hiện --');
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initApp);
+} else {
+  initApp();
+}
+
+// =========================================================================
+// MODAL HELPER FUNCTIONS - FORCE SHOW/HIDE VIA INLINE STYLE + CLASS
+// =========================================================================
+function showModal(modalEl) {
+  if (!modalEl) return;
+  modalEl.classList.add('open', 'active');
+  modalEl.style.setProperty('display', 'flex', 'important');
+  modalEl.style.setProperty('opacity', '1', 'important');
+  modalEl.style.setProperty('visibility', 'visible', 'important');
+  modalEl.style.setProperty('pointer-events', 'auto', 'important');
+  modalEl.style.setProperty('position', 'fixed', 'important');
+  modalEl.style.setProperty('top', '0', 'important');
+  modalEl.style.setProperty('left', '0', 'important');
+  modalEl.style.setProperty('right', '0', 'important');
+  modalEl.style.setProperty('bottom', '0', 'important');
+  modalEl.style.setProperty('z-index', '99999', 'important');
+  modalEl.style.setProperty('align-items', 'center', 'important');
+  modalEl.style.setProperty('justify-content', 'center', 'important');
+  modalEl.style.setProperty('background', 'rgba(0,0,0,0.85)', 'important');
+  modalEl.style.setProperty('padding', '16px', 'important');
+  modalEl.style.setProperty('overflow-y', 'auto', 'important');
+}
+
+function hideModal(modalEl) {
+  if (!modalEl) return;
+  modalEl.classList.remove('open', 'active');
+  modalEl.style.removeProperty('display');
+  modalEl.style.removeProperty('opacity');
+  modalEl.style.removeProperty('visibility');
+  modalEl.style.removeProperty('pointer-events');
+  modalEl.style.setProperty('display', 'none', 'important');
+}
+
+// Global modal backdrop close
+document.addEventListener('click', (e) => {
+  if (e.target && e.target.classList && e.target.classList.contains('modal-overlay')) {
+    hideModal(e.target);
+  }
+});
+
+// Global Escape key to close modals
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    document.querySelectorAll('.modal-overlay.open, .modal-overlay.active').forEach(m => {
+      hideModal(m);
+    });
+  }
+});
+
+
+// =========================================================================
+// USER PROFILE INITIALIZATION
+// =========================================================================
+function initUserProfile() {
+  const chipContainer = document.getElementById('userProfileChip');
+  if (!chipContainer) return;
+
+  const storedUser = localStorage.getItem('bopp_user') || sessionStorage.getItem('bopp_user');
+  let user = { full_name: 'Kỹ Thuật Viên', role: 'technician', username: 'technician' };
+  
+  if (storedUser) {
+    try {
+      user = JSON.parse(storedUser);
+    } catch (e) {
+      console.warn('Cannot parse stored user:', e);
+    }
+  }
+
+  const roleColors = { admin: '#EF4444', supervisor: '#F59E0B', technician: '#10B981' };
+  const roleLabels = { admin: 'Quản trị', supervisor: 'Giám sát', technician: 'Kỹ thuật viên' };
+  const color = roleColors[user.role] || '#6366F1';
+  const label = roleLabels[user.role] || user.role;
+  const initial = (user.full_name || user.username || 'K').charAt(0).toUpperCase();
+
+  chipContainer.innerHTML = `
+    <button type="button" id="btnLogoutUserBtn" class="user-avatar-btn" title="Tài khoản: ${escapeHtml(user.full_name || user.username)} (${label})" style="--avatar-color: ${color};">
+      <span class="avatar-letter">${initial}</span>
+      <span class="user-status-dot" style="background: ${color};"></span>
+    </button>
+  `;
+}
+
+function initTaskStatsState() {
+  const savedState = localStorage.getItem('bopp_tasks_stats_collapsed');
+  const wrapper = document.getElementById('taskStatsCollapsible');
+  const toggleText = document.getElementById('taskStatsToggleText');
+  const chevron = document.getElementById('taskStatsToggleChevron');
+  const isCollapsed = savedState === 'true';
+  if (wrapper) {
+    wrapper.classList.toggle('is-collapsed', isCollapsed);
+  }
+  if (toggleText) {
+    toggleText.textContent = isCollapsed ? 'Xem Thống Kê' : 'Thu Gọn Thống Kê';
+  }
+  if (chevron) {
+    chevron.style.transform = isCollapsed ? 'rotate(0deg)' : 'rotate(180deg)';
+    chevron.style.transition = 'transform 0.2s ease';
+  }
+}
+
+window.toggleTaskStats = function() {
+  const wrapper = document.getElementById('taskStatsCollapsible');
+  const toggleText = document.getElementById('taskStatsToggleText');
+  const chevron = document.getElementById('taskStatsToggleChevron');
+  if (!wrapper) return;
+
+  const isCollapsed = wrapper.classList.toggle('is-collapsed');
+  if (isCollapsed) {
+    if (toggleText) toggleText.textContent = 'Xem Thống Kê';
+    if (chevron) chevron.style.transform = 'rotate(0deg)';
+    localStorage.setItem('bopp_tasks_stats_collapsed', 'true');
+  } else {
+    if (toggleText) toggleText.textContent = 'Thu Gọn Thống Kê';
+    if (chevron) chevron.style.transform = 'rotate(180deg)';
+    localStorage.setItem('bopp_tasks_stats_collapsed', 'false');
+  }
+};
+
+// =========================================================================
+// MAIN VIEW MODE SWITCHER (Công Việc Hiện Hành vs Hạng Mục Định Kỳ)
+// =========================================================================
+function switchTaskTabMode(mode) {
+  currentTabMode = mode;
+  const tabActive = document.getElementById('tabModeActiveTasks');
+  const tabRecurring = document.getElementById('tabModeRecurring');
+  const viewActive = document.getElementById('viewActiveTasksSection');
+  const viewRecurring = document.getElementById('viewRecurringSection');
+  const btnTopCreate = document.getElementById('btnTopCreateTask');
+  const btnTopAddRec = document.getElementById('btnTopAddRecurring');
+
+  if (mode === 'active') {
+    if (tabActive) tabActive.classList.add('active');
+    if (tabRecurring) tabRecurring.classList.remove('active');
+    if (viewActive) viewActive.style.display = 'block';
+    if (viewRecurring) viewRecurring.style.display = 'none';
+    if (btnTopCreate) btnTopCreate.style.display = 'inline-flex';
+    if (btnTopAddRec) btnTopAddRec.style.display = 'none';
+  } else {
+    if (tabActive) tabActive.classList.remove('active');
+    if (tabRecurring) tabRecurring.classList.add('active');
+    if (viewActive) viewActive.style.display = 'none';
+    if (viewRecurring) viewRecurring.style.display = 'block';
+    if (btnTopCreate) btnTopCreate.style.display = 'none';
+    if (btnTopAddRec) btnTopAddRec.style.display = 'inline-flex';
+    loadRecurringTemplates();
+  }
+}
+
+// =========================================================================
+// LOAD TASKS & SUMMARY METRICS
+// =========================================================================
+async function loadTasks() {
+  try {
+    const res = await fetch('/api/internal-tasks');
+    if (!res.ok) throw new Error(`HTTP error ${res.status}`);
+    const data = await res.json();
+    allTasks = data.tasks || [];
+    
+    updateSummaryMetrics();
+    applyFilters();
+  } catch (err) {
+    console.error('Lỗi tải danh sách công việc nội bộ:', err);
+    showToast('Không thể kết nối đến máy chủ để tải công việc!', 'error');
+    const tbody = document.getElementById('excelTaskTableBody');
+    if (tbody) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="14" style="text-align: center; padding: 40px; color: #EF4444;">
+            <p style="font-weight: 600;">Lỗi tải dữ liệu công việc nội bộ!</p>
+            <button class="btn-secondary" style="margin-top: 10px;" onclick="loadTasks()">Thử Lại</button>
+          </td>
+        </tr>
+      `;
+    }
+  }
+}
+
+function updateSummaryMetrics() {
+  const total = allTasks.length;
+  let urgent = 0;
+  let active = 0;
+  let completed = 0;
+  let totalDowntime = 0;
+
+  allTasks.forEach(t => {
+    if (t.Priority === 'URGENT' || t.TaskType === 'BREAKDOWN') urgent++;
+    if (t.Status === 'PENDING' || t.Status === 'IN_PROGRESS') active++;
+    if (t.Status === 'COMPLETED') completed++;
+    if (t.DowntimeMinutes && t.DowntimeMinutes > 0) totalDowntime += Number(t.DowntimeMinutes);
+  });
+
+  const elTotal = document.getElementById('statTotalTasks');
+  const elUrgent = document.getElementById('statUrgentTasks');
+  const elActive = document.getElementById('statActiveTasks');
+  const elCompleted = document.getElementById('statCompletedTasks');
+  const elDowntime = document.getElementById('statDowntimeMin');
+  const elBadgeActive = document.getElementById('badgeActiveTasksCount');
+
+  if (elTotal) elTotal.textContent = total.toLocaleString();
+  if (elUrgent) elUrgent.textContent = urgent.toLocaleString();
+  if (elActive) elActive.textContent = active.toLocaleString();
+  if (elCompleted) elCompleted.textContent = completed.toLocaleString();
+  if (elDowntime) elDowntime.textContent = `${totalDowntime.toLocaleString()}'`;
+  if (elBadgeActive) elBadgeActive.textContent = active.toLocaleString();
+}
+
+// =========================================================================
+// FILTERS & SEARCH FOR ACTIVE TASKS
+// =========================================================================
+function setupSearchDebounce() {
+  const input = document.getElementById('taskSearchInput');
+  const btnClear = document.getElementById('btnClearTaskSearch');
+  if (!input) return;
+  let timeout = null;
+  input.addEventListener('input', () => {
+    if (btnClear) btnClear.style.display = input.value.trim() ? 'block' : 'none';
+    clearTimeout(timeout);
+    timeout = setTimeout(() => {
+      applyFilters();
+    }, 250);
+  });
+}
+
+function clearTaskSearch() {
+  const input = document.getElementById('taskSearchInput');
+  const btnClear = document.getElementById('btnClearTaskSearch');
+  if (input) {
+    input.value = '';
+    input.focus();
+  }
+  if (btnClear) btnClear.style.display = 'none';
+  applyFilters();
+}
+
+function resetAllTaskFilters() {
+  const input = document.getElementById('taskSearchInput');
+  const btnClear = document.getElementById('btnClearTaskSearch');
+  if (input) input.value = '';
+  if (btnClear) btnClear.style.display = 'none';
+
+  const fType = document.getElementById('filterTaskType');
+  if (fType) fType.value = 'all';
+  const fStatus = document.getElementById('filterStatus');
+  if (fStatus) fStatus.value = 'all';
+  const fRec = document.getElementById('filterRecurring');
+  if (fRec) fRec.value = 'all';
+  const fPrio = document.getElementById('filterPriority');
+  if (fPrio) fPrio.value = 'all';
+
+  activeFilterType = 'all';
+  applyFilters();
+}
+
+function filterByType(type, btnElement) {
+  activeFilterType = type;
+  const sel = document.getElementById('filterTaskType');
+  if (sel) sel.value = type;
+  applyFilters();
+}
+
+function applyFilters() {
+  const search = (document.getElementById('taskSearchInput')?.value || '').trim().toLowerCase();
+  const typeFilter = document.getElementById('filterTaskType')?.value || activeFilterType || 'all';
+  activeFilterType = typeFilter;
+  const statusFilter = document.getElementById('filterStatus')?.value || 'all';
+  const priorityFilter = document.getElementById('filterPriority')?.value || 'all';
+  const recurringFilter = document.getElementById('filterRecurring')?.value || 'all';
+
+  // Toggle active filter highlights and reset button style
+  const filterIds = ['filterTaskType', 'filterStatus', 'filterRecurring', 'filterPriority'];
+  let hasActiveFilter = !!search;
+  filterIds.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+      if (el.value && el.value !== 'all') {
+        el.classList.add('active-filter');
+        hasActiveFilter = true;
+      } else {
+        el.classList.remove('active-filter');
+      }
+    }
+  });
+
+  const btnReset = document.getElementById('btnResetTaskFilters');
+  if (btnReset) {
+    if (hasActiveFilter) {
+      btnReset.style.color = '#FCA5A5';
+      btnReset.style.borderColor = 'rgba(239, 68, 68, 0.4)';
+      btnReset.style.background = 'rgba(239, 68, 68, 0.12)';
+    } else {
+      btnReset.style.color = 'var(--text-muted)';
+      btnReset.style.borderColor = 'var(--border-subtle)';
+      btnReset.style.background = 'rgba(255, 255, 255, 0.04)';
+    }
+  }
+
+  const btnClear = document.getElementById('btnClearTaskSearch');
+  if (btnClear) {
+    btnClear.style.display = search ? 'block' : 'none';
+  }
+
+  filteredTasks = allTasks.filter(task => {
+    // Filter by type
+    if (typeFilter !== 'all' && task.TaskType !== typeFilter) {
+      return false;
+    }
+
+    // Filter by status
+    if (statusFilter !== 'all' && task.Status !== statusFilter) {
+      return false;
+    }
+
+    // Filter by priority
+    if (priorityFilter !== 'all' && task.Priority !== priorityFilter) {
+      return false;
+    }
+
+    // Filter by recurring
+    if (recurringFilter === 'recurring' && !task.RecurringTemplateID) {
+      return false;
+    }
+    if (recurringFilter === 'one_off' && task.RecurringTemplateID) {
+      return false;
+    }
+
+    // Filter by text search
+    if (search) {
+      const matchCode = (task.TaskCode || '').toLowerCase().includes(search);
+      const matchTitle = (task.TaskTitle || '').toLowerCase().includes(search);
+      const matchMachine = (task.MachineID || '').toLowerCase().includes(search);
+      const matchReq = (task.RequesterName || '').toLowerCase().includes(search);
+      const matchAssign = (task.AssignedTo || '').toLowerCase().includes(search);
+      const matchDesc = (task.Description || '').toLowerCase().includes(search);
+      const matchCycle = (task.CycleInfo || '').toLowerCase().includes(search);
+      if (!matchCode && !matchTitle && !matchMachine && !matchReq && !matchAssign && !matchDesc && !matchCycle) {
+        return false;
+      }
+    }
+
+    return true;
+  });
+
+  renderTaskExcelTable();
+}
+
+// =========================================================================
+// RENDER TASK CARDS
+// =========================================================================
+function renderTaskCards() {
+  const grid = document.getElementById('taskCardsGrid');
+  if (!grid) return;
+
+  if (filteredTasks.length === 0) {
+    grid.innerHTML = `
+      <div style="grid-column: 1 / -1; text-align: center; padding: 60px 20px; background: var(--bg-card); border-radius: var(--radius-md); border: 1px dashed var(--border-subtle);">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color: var(--text-muted); margin-bottom: 12px;">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="15" x2="15" y2="15"/>
+        </svg>
+        <p style="font-size: 1rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 6px;">Không tìm thấy công việc nào phù hợp</p>
+        <p style="font-size: 0.82rem; color: var(--text-muted);">Thử thay đổi bộ lọc hoặc tạo công việc mới</p>
+        <button class="btn-primary" style="margin-top: 14px; padding: 8px 18px;" onclick="openCreateTaskModal()">
+          + Ghi Nhận Công Việc Mới
+        </button>
+      </div>
+    `;
+    return;
+  }
+
+  const typeLabels = {
+    BREAKDOWN: { text: 'Sự Cố Máy', class: 'badge-type-breakdown' },
+    DEPT_REQUEST: { text: 'Yêu Cầu P.Ban', class: 'badge-type-dept' },
+    IMPROVEMENT: { text: 'Cải Tiến', class: 'badge-type-improvement' },
+    INTERNAL: { text: 'Nội Bộ Kỹ Thuật', class: 'badge-type-internal' }
+  };
+
+  const priorityLabels = {
+    URGENT: { text: 'Khẩn Cấp', class: 'badge-prio-urgent' },
+    HIGH: { text: 'Ưu Tiên Cao', class: 'badge-prio-high' },
+    NORMAL: { text: 'Bình Thường', class: 'badge-prio-normal' },
+    LOW: { text: 'Thấp', class: 'badge-prio-normal' }
+  };
+
+  const statusLabels = {
+    PENDING: { text: 'Chờ Tiếp Nhận', class: 'badge-status-pending' },
+    IN_PROGRESS: { text: 'Đang Xử Lý', class: 'badge-status-inprogress' },
+    HOLD: { text: 'Tạm Hoãn', class: 'badge-status-hold' },
+    COMPLETED: { text: 'Đã Nghiệm Thu', class: 'badge-status-completed' }
+  };
+
+  grid.innerHTML = filteredTasks.map(task => {
+    const typeInfo = typeLabels[task.TaskType] || { text: task.TaskType, class: 'badge-type-internal' };
+    const prioInfo = priorityLabels[task.Priority] || { text: task.Priority, class: 'badge-prio-normal' };
+    const statusInfo = statusLabels[task.Status] || { text: task.Status, class: 'badge-status-pending' };
+
+    // Machine tag
+    const machineHtml = task.MachineID ? `
+      <span class="machine-badge">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        ${escapeHtml(task.MachineID)}
+      </span>
+    ` : '';
+
+    // Downtime tag
+    const downtimeHtml = (task.DowntimeMinutes && task.DowntimeMinutes > 0) ? `
+      <span class="downtime-badge">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        Dừng: ${task.DowntimeMinutes}'
+      </span>
+    ` : '';
+
+    // Recurring Badge
+    const recurringHtml = task.RecurringTemplateID ? `
+      <span class="badge badge-recurring" title="Chu kỳ lặp lại: ${escapeHtml(task.CycleInfo || '')}">
+        🔁 ${task.RecurringCount ? `#${task.RecurringCount}` : ''} ${escapeHtml(task.CycleInfo || 'Định kỳ')}
+      </span>
+    ` : '';
+
+    // Photos preview
+    const images = task.images || [];
+    let photosHtml = '';
+    if (images.length > 0) {
+      photosHtml = `
+        <div class="photo-preview-strip">
+          ${images.slice(0, 4).map(img => `
+            <img class="photo-thumb" src="${img.FileUrl}" title="${escapeHtml(img.Caption || img.ImageType)}" onclick="event.stopPropagation(); openLightbox('${img.FileUrl}', '${escapeHtml(img.Caption || '')}')">
+          `).join('')}
+          ${images.length > 4 ? `<span style="font-size: 0.72rem; color: var(--text-muted); align-self: center;">+${images.length - 4} ảnh</span>` : ''}
+        </div>
+      `;
+    }
+
+    // Quick action button
+    let quickActionBtn = '';
+    if (task.Status === 'PENDING') {
+      quickActionBtn = `
+        <button class="btn-primary" style="padding: 5px 12px; font-size: 0.75rem; background: #3B82F6;" onclick="event.stopPropagation(); quickCardAction(${task.id}, 'IN_PROGRESS')">
+          ▶ Bắt Đầu
+        </button>
+      `;
+    } else if (task.Status === 'IN_PROGRESS') {
+      quickActionBtn = `
+        <button class="btn-primary" style="padding: 5px 12px; font-size: 0.75rem; background: #10B981;" onclick="event.stopPropagation(); quickCardAction(${task.id}, 'COMPLETED')">
+          ✓ Hoàn Tất
+        </button>
+      `;
+    }
+
+    // Next due date if present
+    const dueMetaHtml = task.NextDueDate ? `
+      <div class="meta-item">
+        <span class="meta-label">Hạn Lần Tới</span>
+        <span class="meta-val" style="color: #FBBF24; font-family: var(--font-mono); font-size: 0.75rem; font-weight: 700;">
+          📅 ${formatDateTime(task.NextDueDate)}
+        </span>
+      </div>
+    ` : '';
+
+    // Checklist progress
+    let checklistHtml = '';
+    if (task.items_count && task.items_count > 0) {
+      checklistHtml = `
+        <div style="margin-bottom: 12px; background: rgba(0, 0, 0, 0.2); padding: 6px 10px; border-radius: var(--radius-sm); border: 1px solid rgba(255, 255, 255, 0.06);">
+          <div style="display: flex; justify-content: space-between; font-size: 0.72rem; margin-bottom: 4px; color: var(--text-secondary);">
+            <span>📋 Hạng mục con:</span>
+            <span style="font-weight: 700; color: ${task.progress_percent === 100 ? '#10B981' : '#818CF8'};">${task.completed_items_count || 0}/${task.items_count} (${task.progress_percent || 0}%)</span>
+          </div>
+          <div style="width: 100%; height: 5px; background: rgba(255, 255, 255, 0.08); border-radius: 3px; overflow: hidden;">
+            <div style="width: ${task.progress_percent || 0}%; height: 100%; background: ${task.progress_percent === 100 ? '#10B981' : 'linear-gradient(90deg, #6366F1, #10B981)'};"></div>
+          </div>
+        </div>
+      `;
+    }
+
+    return `
+      <div class="task-card" onclick="openTaskDetail(${task.id})">
+        <div>
+          <div class="task-card-header">
+            <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+              <span class="task-code">${escapeHtml(task.TaskCode)}</span>
+              <span class="badge ${typeInfo.class}">${typeInfo.text}</span>
+              ${recurringHtml}
+              ${machineHtml}
+              ${downtimeHtml}
+            </div>
+            <span class="badge ${prioInfo.class}">${prioInfo.text}</span>
+          </div>
+
+          <h3 class="task-card-title">${escapeHtml(task.TaskTitle)}</h3>
+          
+          <div class="task-card-desc">
+            ${escapeHtml(task.Description || 'Không có mô tả chi tiết.')}
+          </div>
+
+          ${photosHtml}
+          ${checklistHtml}
+
+          <div class="task-card-meta">
+            <div class="meta-item">
+              <span class="meta-label">Người Yêu Cầu</span>
+              <span class="meta-val">${escapeHtml(task.RequesterName)} (${escapeHtml(task.Department || 'KỸ THUẬT')})</span>
+            </div>
+            <div class="meta-item">
+              <span class="meta-label">KTV Xử Lý</span>
+              <span class="meta-val" style="color: ${task.AssignedTo ? '#93C5FD' : 'var(--text-muted)'};">
+                ${escapeHtml(task.AssignedTo || 'Chưa phân công')}
+              </span>
+            </div>
+            <div class="meta-item">
+              <span class="meta-label">Thời Điểm Báo</span>
+              <span class="meta-val" style="font-family: var(--font-mono); font-size: 0.75rem;">${formatDateTime(task.ReportedAt)}</span>
+            </div>
+            ${dueMetaHtml}
+            <div class="meta-item">
+              <span class="meta-label">Trạng Thái</span>
+              <div><span class="badge ${statusInfo.class}">${statusInfo.text}</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="task-card-footer">
+          <span style="font-size: 0.75rem; color: var(--text-muted);">
+            ${task.Solution ? '✓ Có giải pháp ghi nhận' : 'Chưa có ghi chú xử lý'}
+          </span>
+          <div style="display: flex; gap: 6px; align-items: center;">
+            ${quickActionBtn}
+            <button class="btn-secondary" style="padding: 5px 12px; font-size: 0.75rem;" onclick="event.stopPropagation(); openTaskDetail(${task.id})">
+              Chi Tiết
+            </button>
+          </div>
+    `;
+  }).join('');
+}
+
+// =========================================================================
+// RENDER EXCEL DATA GRID TABLE VIEW
+// =========================================================================
+function switchActiveTaskViewMode(mode) {
+  activeTaskViewMode = 'excel';
+  try {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem('internal_tasks_view_mode', 'excel');
+    }
+  } catch (e) {
+    console.warn('localStorage error:', e);
+  }
+
+  const excelWrap = document.getElementById('taskExcelTableWrapper');
+  if (excelWrap) excelWrap.style.display = 'block';
+  renderTaskExcelTable();
+}
+
+function renderTaskExcelTable() {
+  const tbody = document.getElementById('excelTaskTableBody');
+  const counter = document.getElementById('excelTaskCounter');
+  if (!tbody) return;
+
+  if (counter) {
+    counter.innerHTML = `<span class="counter-badge"><span class="counter-full">Đang hiển thị ${filteredTasks.length} / ${allTasks.length} công việc</span><span class="counter-short">${filteredTasks.length}/${allTasks.length} việc</span></span>`;
+  }
+  const badgeActive = document.getElementById('badgeActiveTasksCount');
+  if (badgeActive) {
+    badgeActive.textContent = filteredTasks.length === allTasks.length ? `${allTasks.length}` : `${filteredTasks.length} / ${allTasks.length}`;
+  }
+
+  const query = (document.getElementById('taskSearchInput')?.value || '').trim().toLowerCase();
+
+  if (filteredTasks.length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="14" style="text-align: center; padding: 48px 16px; color: var(--text-muted);">
+          <div style="font-size: 28px; margin-bottom: 8px;">📋</div>
+          <div style="font-weight: 600; color: var(--text-secondary); margin-bottom: 4px;">Không tìm thấy công việc nào phù hợp</div>
+          <div style="font-size: 0.8rem;">Hãy thử thay đổi từ khóa tìm kiếm hoặc các tiêu chí lọc.</div>
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  const typeLabels = {
+    BREAKDOWN: { text: 'Sự Cố Máy', class: 'badge-type-breakdown' },
+    DEPT_REQUEST: { text: 'Yêu Cầu P.Ban', class: 'badge-type-dept' },
+    IMPROVEMENT: { text: 'Cải Tiến', class: 'badge-type-improvement' },
+    INTERNAL: { text: 'Nội Bộ Kỹ Thuật', class: 'badge-type-internal' }
+  };
+
+  const priorityLabels = {
+    URGENT: { text: 'Khẩn Cấp', class: 'badge-prio-urgent' },
+    HIGH: { text: 'Ưu Tiên Cao', class: 'badge-prio-high' },
+    NORMAL: { text: 'Bình Thường', class: 'badge-prio-normal' },
+    LOW: { text: 'Thấp', class: 'badge-prio-normal' }
+  };
+
+  const statusLabels = {
+    PENDING: { text: 'Chờ Tiếp Nhận', class: 'badge-status-pending' },
+    IN_PROGRESS: { text: 'Đang Xử Lý', class: 'badge-status-inprogress' },
+    HOLD: { text: 'Tạm Hoãn', class: 'badge-status-hold' },
+    COMPLETED: { text: 'Đã Nghiệm Thu', class: 'badge-status-completed' }
+  };
+
+  tbody.innerHTML = filteredTasks.map((task, idx) => {
+    const typeInfo = typeLabels[task.TaskType] || { text: task.TaskType, class: 'badge-type-internal' };
+    const prioInfo = priorityLabels[task.Priority] || { text: task.Priority, class: 'badge-prio-normal' };
+    const statusInfo = statusLabels[task.Status] || { text: task.Status, class: 'badge-status-pending' };
+    const isUrgent = task.Priority === 'URGENT' || task.TaskType === 'BREAKDOWN';
+    const isCompleted = task.Status === 'COMPLETED';
+
+    // Checklist mini progress
+    let checklistMini = '<span style="color: var(--text-muted);">-</span>';
+    if (task.items_count && task.items_count > 0) {
+      checklistMini = `
+        <div style="min-width: 100px;">
+          <div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 2px;">
+            <span style="font-weight: 700; color: ${task.progress_percent === 100 ? '#10B981' : '#A5B4FC'};">
+              ${task.completed_items_count || 0}/${task.items_count} (${task.progress_percent || 0}%)
+            </span>
+          </div>
+          <div style="width: 100%; height: 4px; background: rgba(255, 255, 255, 0.08); border-radius: 2px; overflow: hidden;">
+            <div style="width: ${task.progress_percent || 0}%; height: 100%; background: ${task.progress_percent === 100 ? '#10B981' : 'linear-gradient(90deg, #6366F1, #10B981)'};"></div>
+          </div>
+        </div>
+      `;
+    }
+
+    // Photos badge
+    const images = task.images || [];
+    let photoBadge = '<span style="color: var(--text-muted);">-</span>';
+    if (images.length > 0) {
+      photoBadge = `
+        <button type="button" class="btn-proof-history has-proof" style="padding: 2px 7px; font-size: 11px; margin: 0 auto; display: flex;" onclick="event.stopPropagation(); openLightbox('${images[0].FileUrl}', '${escapeHtml(task.TaskTitle)}')">
+          📸 ${images.length}
+        </button>
+      `;
+    }
+
+    // Downtime display
+    const downtimeText = (task.DowntimeMinutes && task.DowntimeMinutes > 0) ?
+      `<span style="color: #EF4444; font-weight: 700;">${task.DowntimeMinutes}'</span>` :
+      `<span style="color: var(--text-muted);">-</span>`;
+
+    return `
+      <tr class="${isUrgent ? 'row-urgent' : ''} ${isCompleted ? 'row-completed' : ''}" onclick="openTaskDetail(${task.id})" style="cursor: pointer;" title="Bấm vào hàng để mở chi tiết công việc [${escapeHtml(task.TaskCode)}]">
+        <td style="text-align: center; color: var(--text-muted); font-weight: 600; font-size: 11px;">${idx + 1}</td>
+        <td>
+          <span class="badge ${typeInfo.class}" style="font-size: 10.5px; padding: 2px 6px;">${typeInfo.text}</span>
+        </td>
+        <td>
+          <span class="excel-code-link">${highlightText(task.TaskCode || '', query)}</span>
+        </td>
+        <td style="min-width: 320px;">
+          <div style="font-weight: 700; color: #F8FAFC; line-height: 1.35;">
+            ${highlightText(task.TaskTitle || '', query)}
+          </div>
+          ${task.Description ? `<div style="font-size: 11px; color: var(--text-muted); margin-top: 2px; max-width: 360px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${highlightText(task.Description, query)}</div>` : ''}
+        </td>
+        <td>
+          <span style="font-weight: 700; font-family: 'JetBrains Mono', monospace; color: #38BDF8;">
+            ${highlightText(task.MachineID || '-', query)}
+          </span>
+        </td>
+        <td>
+          <span style="color: var(--text-secondary); font-size: 11.5px;">${highlightText(task.Department || '-', query)}</span>
+        </td>
+        <td style="text-align: center;">
+          <span class="badge ${prioInfo.class}" style="font-size: 10px; padding: 2px 6px;">${prioInfo.text}</span>
+        </td>
+        <td style="text-align: center;">
+          <span class="badge ${statusInfo.class}" style="font-size: 10.5px; padding: 2px 6px;">${statusInfo.text}</span>
+        </td>
+        <td>${checklistMini}</td>
+        <td>
+          ${task.AssignedTo ? `<span style="color: #93C5FD; font-weight: 600; font-size: 11.5px;">👤 ${highlightText(task.AssignedTo, query)}</span>` : '<span style="color: var(--text-muted); font-size: 11px; font-style: italic;">Chưa phân công</span>'}
+        </td>
+        <td>
+          <span style="color: var(--text-secondary); font-size: 11.5px;">${highlightText(task.RequesterName || '-', query)}</span>
+        </td>
+        <td>
+          <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-muted);">
+            ${task.ReportedAt ? formatDateTime(task.ReportedAt) : '-'}
+          </span>
+        </td>
+        <td style="text-align: center;">${downtimeText}</td>
+        <td style="text-align: center;">${photoBadge}</td>
+      </tr>
+    `;
+  }).join('');
+}
+
+function sortExcelTasks(column) {
+  if (taskSortColumn === column) {
+    taskSortDirection = taskSortDirection === 'asc' ? 'desc' : 'asc';
+  } else {
+    taskSortColumn = column;
+    taskSortDirection = 'asc';
+  }
+
+  // Update header sort indicators
+  const sortIcons = {
+    TaskCode: 'sortIcon_TaskCode',
+    TaskType: 'sortIcon_TaskType',
+    TaskTitle: 'sortIcon_TaskTitle',
+    MachineID: 'sortIcon_MachineID',
+    Department: 'sortIcon_Department',
+    Priority: 'sortIcon_Priority',
+    Status: 'sortIcon_Status',
+    progress_percent: 'sortIcon_progress_percent',
+    AssignedTo: 'sortIcon_AssignedTo',
+    RequesterName: 'sortIcon_RequesterName',
+    ReportedAt: 'sortIcon_ReportedAt',
+    DowntimeMinutes: 'sortIcon_DowntimeMinutes'
+  };
+
+  Object.values(sortIcons).forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = '↕';
+  });
+
+  const activeIcon = document.getElementById(sortIcons[column]);
+  if (activeIcon) {
+    activeIcon.textContent = taskSortDirection === 'asc' ? '▲' : '▼';
+  }
+
+  document.querySelectorAll('.excel-grid-table th.sortable-th').forEach(th => {
+    th.classList.remove('sorted-asc', 'sorted-desc');
+  });
+  const activeTh = document.querySelector(`.excel-grid-table th[onclick*="'${column}'"]`);
+  if (activeTh) {
+    activeTh.classList.add(taskSortDirection === 'asc' ? 'sorted-asc' : 'sorted-desc');
+  }
+
+  // Sort filteredTasks
+  filteredTasks.sort((a, b) => {
+    let valA = a[column];
+    let valB = b[column];
+
+    if (column === 'progress_percent' || column === 'DowntimeMinutes') {
+      valA = Number(valA) || 0;
+      valB = Number(valB) || 0;
+    } else if (column === 'Priority') {
+      const prioOrder = { URGENT: 3, HIGH: 2, NORMAL: 1, LOW: 0 };
+      valA = prioOrder[valA] || 0;
+      valB = prioOrder[valB] || 0;
+    } else if (column === 'Status') {
+      const statusOrder = { PENDING: 0, IN_PROGRESS: 1, HOLD: 2, COMPLETED: 3 };
+      valA = statusOrder[valA] || 0;
+      valB = statusOrder[valB] || 0;
+    } else if (typeof valA === 'string' || typeof valB === 'string') {
+      valA = (valA || '').toLowerCase();
+      valB = (valB || '').toLowerCase();
+    }
+
+    if (valA < valB) return taskSortDirection === 'asc' ? -1 : 1;
+    if (valA > valB) return taskSortDirection === 'asc' ? 1 : -1;
+    return 0;
+  });
+
+  renderTaskExcelTable();
+}
+
+function exportTasksToExcel() {
+  if (!filteredTasks || filteredTasks.length === 0) {
+    showToast('Không có dữ liệu công việc để xuất file!', 'warning');
+    return;
+  }
+
+  const typeMap = {
+    BREAKDOWN: 'Sự Cố Máy',
+    DEPT_REQUEST: 'Yêu Cầu P.Ban',
+    IMPROVEMENT: 'Cải Tiến Kaizen',
+    INTERNAL: 'Nội Bộ Kỹ Thuật'
+  };
+
+  const prioMap = {
+    URGENT: 'Khẩn Cấp',
+    HIGH: 'Ưu Tiên Cao',
+    NORMAL: 'Bình Thường',
+    LOW: 'Thấp'
+  };
+
+  const statusMap = {
+    PENDING: 'Chờ Tiếp Nhận',
+    IN_PROGRESS: 'Đang Xử Lý',
+    HOLD: 'Tạm Hoãn',
+    COMPLETED: 'Đã Nghiệm Thu'
+  };
+
+  const headers = [
+    'STT',
+    'Mã Công Việc',
+    'Phân Loại',
+    'Tiêu Đề Công Việc',
+    'Máy / Dây Chuyền',
+    'Phòng Ban',
+    'Mức Độ Ưu Tiên',
+    'Trạng Thái',
+    'Tiến Độ (%)',
+    'Việc Con Hoàn Thành',
+    'Tổng Việc Con',
+    'KTV Phụ Trách',
+    'Người Yêu Cầu',
+    'Thời Điểm Báo',
+    'Hạn Xử Lý Lần Tới',
+    'Dừng Máy (Phút)',
+    'Giải Pháp Xử Lý',
+    'Mô Tả Chi Tiết'
+  ];
+
+  const rows = filteredTasks.map((t, idx) => [
+    idx + 1,
+    t.TaskCode || '',
+    typeMap[t.TaskType] || t.TaskType || '',
+    t.TaskTitle || '',
+    t.MachineID || '',
+    t.Department || '',
+    prioMap[t.Priority] || t.Priority || '',
+    statusMap[t.Status] || t.Status || '',
+    t.progress_percent || 0,
+    t.completed_items_count || 0,
+    t.items_count || 0,
+    t.AssignedTo || '',
+    t.RequesterName || '',
+    t.ReportedAt ? formatDateTime(t.ReportedAt) : '',
+    t.NextDueDate ? formatDateTime(t.NextDueDate) : '',
+    t.DowntimeMinutes || 0,
+    t.Solution || '',
+    t.Description || ''
+  ]);
+
+  // Format as CSV with UTF-8 BOM
+  const csvRows = [];
+  csvRows.push(headers.map(h => `"${String(h).replace(/"/g, '""')}"`).join(','));
+
+  rows.forEach(row => {
+    csvRows.push(row.map(col => `"${String(col ?? '').replace(/"/g, '""')}"`).join(','));
+  });
+
+  const csvContent = '\uFEFF' + csvRows.join('\r\n');
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const now = new Date();
+  const dateStr = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}`;
+  a.href = url;
+  a.download = `Cong_Viec_Noi_Bo_${dateStr}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+
+  showToast(`Đã xuất ${filteredTasks.length} công việc ra tệp Excel (.csv) thành công!`, 'success');
+}
+
+// =========================================================================
+// CREATE TASK WORKFLOW (Có tích hợp tùy chọn Lặp Lại Định Kỳ)
+// =========================================================================
+async function openCreateTaskModal() {
+  const modal = document.getElementById('createTaskModal');
+  if (!modal) return;
+
+  if (allEmployees.length === 0) {
+    await loadEmployees();
+  }
+
+  // Populate employee select
+  const selAssignee = document.getElementById('newTaskAssignee');
+  if (selAssignee) {
+    selAssignee.innerHTML = buildEmployeeSelectOptions('', '-- Chọn kỹ thuật viên phụ trách --');
+  }
+
+  // Clear & reset sub-items container
+  const itemsContainer = document.getElementById('newTaskItemsContainer');
+  if (itemsContainer) {
+    itemsContainer.innerHTML = '';
+    addNewTaskItemRow();
+  }
+
+  // Auto fill requester with current logged in user
+  const storedUser = localStorage.getItem('bopp_user') || sessionStorage.getItem('bopp_user');
+  if (storedUser) {
+    try {
+      const u = JSON.parse(storedUser);
+      if (u.full_name) {
+        document.getElementById('newTaskRequester').value = u.full_name;
+      }
+    } catch (e) {}
+  }
+
+  // Reset recurring toggle in task modal
+  const chk = document.getElementById('newTaskIsRecurring');
+  if (chk) {
+    chk.checked = false;
+    toggleNewTaskRecurringFields(false);
+  }
+  selectNewTaskCycleType('INTERVAL_DAYS');
+  setNewTaskInterval(15);
+  const autoRec = document.getElementById('newTaskAutoRecreate');
+  if (autoRec) autoRec.checked = true;
+
+  modal.classList.add('open', 'active');
+  document.body.classList.add('mobile-view-detail');
+  try { history.pushState({ modal: 'createTask' }, ''); } catch (e) {}
+}
+
+function addNewTaskItemRow(itemData = {}) {
+  const container = document.getElementById('newTaskItemsContainer');
+  if (!container) return;
+
+  const row = document.createElement('div');
+  row.className = 'task-item-row';
+  row.style = 'display: grid; grid-template-columns: 2fr 1.3fr 1fr auto auto; gap: 8px; align-items: center; background: rgba(0,0,0,0.25); padding: 8px 10px; border-radius: var(--radius-sm); border: 1px solid rgba(255,255,255,0.06);';
+
+  const hasSample = !!itemData.SampleImageUrl;
+
+  row.innerHTML = `
+    <input type="text" class="form-input new-item-title" style="padding: 6px 10px; font-size: 0.82rem;" placeholder="Nội dung hạng mục việc..." value="${escapeHtml(itemData.ItemTitle || '')}">
+    <select class="form-select new-item-assignee" style="padding: 6px 10px; font-size: 0.82rem;">
+      ${buildEmployeeSelectOptions(itemData.AssignedTo || '', '-- Chọn người thực hiện --')}
+    </select>
+    <input type="text" class="form-input new-item-note" style="padding: 6px 10px; font-size: 0.82rem;" placeholder="Ghi chú / yêu cầu..." value="${escapeHtml(itemData.Note || itemData.Notes || '')}">
+    <input type="hidden" class="new-item-sample-url" value="${escapeHtml(itemData.SampleImageUrl || '')}">
+    <div style="display: flex; align-items: center; gap: 4px;">
+      <div class="item-sample-thumb-box" style="width: 28px; height: 28px; border-radius: 4px; overflow: hidden; border: 1px solid #38BDF8; background: #000; cursor: pointer; flex-shrink: 0; display: ${hasSample ? 'block' : 'none'};" onclick="openLightbox('${itemData.SampleImageUrl || ''}', 'Ảnh Mẫu SOP')" title="Xem ảnh mẫu chuẩn SOP">
+        ${hasSample ? `<img src="${itemData.SampleImageUrl}" style="width: 100%; height: 100%; object-fit: cover;">` : ''}
+      </div>
+    </div>
+    <button type="button" class="btn-clear" style="color: #EF4444; padding: 4px 6px; font-size: 0.85rem;" title="Xóa dòng này" onclick="this.closest('.task-item-row').remove()">
+      ✕
+    </button>
+  `;
+  container.appendChild(row);
+}
+
+function closeCreateTaskModal() {
+  const modal = document.getElementById('createTaskModal');
+  if (modal) modal.classList.remove('open', 'active');
+  document.body.classList.remove('mobile-view-detail');
+  document.getElementById('formCreateTask')?.reset();
+}
+
+function toggleNewTaskRecurringFields(checked) {
+  const box = document.getElementById('newTaskRecurringBox');
+  if (box) box.style.display = checked ? 'block' : 'none';
+}
+
+function selectNewTaskCycleType(type) {
+  newTaskCycleType = type;
+  const pillInterval = document.getElementById('pillTaskCycleInterval');
+  const pillMonthly = document.getElementById('pillTaskCycleMonthly');
+  const panelInterval = document.getElementById('panelTaskCycleInterval');
+  const panelMonthly = document.getElementById('panelTaskCycleMonthly');
+
+  if (type === 'INTERVAL_DAYS') {
+    pillInterval?.classList.add('active');
+    pillMonthly?.classList.remove('active');
+    if (panelInterval) panelInterval.style.display = 'block';
+    if (panelMonthly) panelMonthly.style.display = 'none';
+  } else {
+    pillInterval?.classList.remove('active');
+    pillMonthly?.classList.add('active');
+    if (panelInterval) panelInterval.style.display = 'none';
+    if (panelMonthly) panelMonthly.style.display = 'block';
+  }
+}
+
+function setNewTaskInterval(days) {
+  const inp = document.getElementById('newTaskIntervalDays');
+  if (inp) inp.value = days;
+}
+
+function setNewTaskMonthlyDays(daysStr) {
+  const inp = document.getElementById('newTaskMonthlyDays');
+  if (inp) inp.value = daysStr;
+}
+
+async function submitCreateTask(e) {
+  e.preventDefault();
+  const btn = document.getElementById('btnSubmitCreateTask');
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = 'Đang Lưu...';
+  }
+
+  const isRecurring = document.getElementById('newTaskIsRecurring')?.checked || false;
+
+  // Collect sub-items checklist
+  const itemRows = document.querySelectorAll('#newTaskItemsContainer .task-item-row');
+  const items = [];
+  itemRows.forEach((r, idx) => {
+    const title = (r.querySelector('.new-item-title')?.value || '').trim();
+    if (title) {
+      const sel = r.querySelector('.new-item-assignee');
+      const opt = sel ? sel.options[sel.selectedIndex] : null;
+      items.push({
+        ItemTitle: title,
+        AssignedTo: sel ? sel.value : '',
+        AssignedEmpID: opt ? opt.dataset.empid || '' : '',
+        Department: opt ? opt.dataset.dept || 'Cơ điện' : 'Cơ điện',
+        Note: (r.querySelector('.new-item-note')?.value || '').trim(),
+        SampleImageUrl: (r.querySelector('.new-item-sample-url')?.value || '').trim(),
+        ItemOrder: idx + 1
+      });
+    }
+  });
+
+  const payload = {
+    TaskTitle: document.getElementById('newTaskTitle').value.trim(),
+    TaskType: document.getElementById('newTaskType').value,
+    Priority: document.getElementById('newTaskPriority').value,
+    MachineID: document.getElementById('newTaskMachine').value.trim(),
+    Department: document.getElementById('newTaskDept').value.trim(),
+    RequesterName: document.getElementById('newTaskRequester').value.trim(),
+    AssignedTo: document.getElementById('newTaskAssignee').value.trim(),
+    Description: document.getElementById('newTaskDesc').value.trim(),
+    IsRecurring: isRecurring,
+    Items: items.length > 0 ? items : undefined
+  };
+
+  if (isRecurring) {
+    payload.CycleType = newTaskCycleType;
+    if (newTaskCycleType === 'INTERVAL_DAYS') {
+      payload.IntervalDays = Number(document.getElementById('newTaskIntervalDays').value) || 15;
+    } else {
+      const monthlyVal = (document.getElementById('newTaskMonthlyDays')?.value || '').trim();
+      if (!monthlyVal) {
+        showToast('Vui lòng nhập các ngày trong tháng (ví dụ: 11, 21, 31)!', 'warning');
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = 'Lưu & Tạo Công Việc';
+        }
+        return;
+      }
+      payload.MonthlyDays = monthlyVal;
+    }
+    payload.AutoRecreateOnComplete = document.getElementById('newTaskAutoRecreate')?.checked ? 1 : 0;
+  }
+
+  try {
+    const res = await fetch('/api/internal-tasks', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'Lỗi khi tạo công việc');
+
+    showToast(`Đã tạo thành công công việc: ${data.task_code}`, 'success');
+    closeCreateTaskModal();
+    await loadTasks();
+    if (isRecurring) {
+      await loadRecurringTemplates();
+    }
+  } catch (err) {
+    console.error('Lỗi tạo công việc:', err);
+    showToast(err.message || 'Không thể tạo công việc mới', 'error');
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = 'Lưu & Tạo Công Việc';
+    }
+  }
+}
+
+// =========================================================================
+// RECURRING TEMPLATES MANAGEMENT (Quản lý các hạng mục có chu kỳ)
+// =========================================================================
+// =========================================================================
+// RECURRING TEMPLATES & SUB-ITEMS (Master-Detail SOP Library)
+// =========================================================================
+
+async function loadRecurringData() {
+  try {
+    const [resTpl, resItems] = await Promise.all([
+      fetch('/api/internal-tasks/recurring-templates'),
+      fetch('/api/internal-tasks/recurring-items')
+    ]);
+
+    if (resTpl.ok) {
+      const dataTpl = await resTpl.json();
+      allRecurringTemplates = dataTpl.templates || [];
+    }
+
+    if (resItems.ok) {
+      const dataItems = await resItems.json();
+      allRecurringItems = dataItems.items || [];
+    }
+
+    // Index sub-items by recurring template
+    itemsByRecurringTemplate.clear();
+    allRecurringTemplates.forEach(t => itemsByRecurringTemplate.set(t.id, []));
+    allRecurringItems.forEach(item => {
+      if (item.TemplateID && itemsByRecurringTemplate.has(item.TemplateID)) {
+        itemsByRecurringTemplate.get(item.TemplateID).push(item);
+      }
+    });
+
+    // Update master counters & badges
+    const badgeTop = document.getElementById('badgeRecurringTemplatesCount');
+    if (badgeTop) badgeTop.textContent = allRecurringTemplates.length.toLocaleString();
+
+    const badgeMaster = document.getElementById('recurringMasterTotalBadge');
+    if (badgeMaster) badgeMaster.textContent = allRecurringTemplates.length.toLocaleString();
+
+    const badgeAllItems = document.getElementById('allRecurringItemsBadge');
+    if (badgeAllItems) badgeAllItems.textContent = `${allRecurringItems.length} mục con`;
+
+    const textAllTpl = document.getElementById('allRecurringTplCountText');
+    if (textAllTpl) textAllTpl.textContent = `Toàn bộ ${allRecurringTemplates.length} danh mục`;
+
+    filterRecurringItems();
+  } catch (err) {
+    console.error('Lỗi tải dữ liệu định kỳ:', err);
+    const tbody = document.getElementById('recurringItemsTableBody');
+    if (tbody) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="8" style="text-align: center; padding: 30px; color: #EF4444;">
+            Không thể tải dữ liệu hạng mục định kỳ. 
+            <button class="btn-secondary" style="margin-left: 8px;" onclick="loadRecurringData()">Thử Lại</button>
+          </td>
+        </tr>
+      `;
+    }
+  }
+}
+
+// Backward compatibility alias
+async function loadRecurringTemplates() {
+  return await loadRecurringData();
+}
+
+function setupRecurringSearchDebounce() {
+  const input = document.getElementById('recurringSearchInput');
+  if (!input) return;
+  let timeout = null;
+  input.addEventListener('input', () => {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => {
+      filterRecurringItems();
+    }, 200);
+  });
+}
+
+function clearRecurringSearch() {
+  const input = document.getElementById('recurringSearchInput');
+  if (input) input.value = '';
+  filterRecurringItems();
+}
+
+function selectRecurringTemplate(templateId, isPopState = false) {
+  selectedRecurringTplId = templateId;
+
+  // Update left sidebar active state
+  const btnAll = document.getElementById('btnSelectAllRecurring');
+  const masterCards = document.querySelectorAll('#recurringMasterList .master-card');
+
+  if (templateId === null) {
+    btnAll?.classList.add('active');
+    masterCards.forEach(c => c.classList.remove('active'));
+  } else {
+    btnAll?.classList.remove('active');
+    masterCards.forEach(c => {
+      if (c.dataset.tplId == templateId) {
+        c.classList.add('active');
+      } else {
+        c.classList.remove('active');
+      }
+    });
+  }
+
+  // Master-Detail Mobile View Switcher
+  const layoutContainer = document.querySelector('.category-layout-container');
+  const mobileBadge = document.getElementById('recurringMobileDetailCode');
+
+  if (templateId !== null) {
+    if (layoutContainer) layoutContainer.classList.add('mobile-detail-active');
+    const tpl = allRecurringTemplates.find(t => t.id == templateId);
+    if (mobileBadge && tpl) {
+      mobileBadge.textContent = tpl.TemplateCode || 'REC';
+    }
+    if (!isPopState) {
+      try {
+        history.pushState({ recurringDetail: templateId }, '');
+      } catch (e) {}
+    }
+    if (window.innerWidth <= 768) {
+      window.scrollTo({ top: 90, behavior: 'smooth' });
+    }
+  } else {
+    if (layoutContainer) layoutContainer.classList.remove('mobile-detail-active');
+    if (window.innerWidth <= 768) {
+      window.scrollTo({ top: 90, behavior: 'smooth' });
+    }
+  }
+
+  updateRecurringDetailBanner(templateId);
+  filterRecurringItems(false);
+}
+
+function updateRecurringDetailBanner(templateId) {
+  const banner = document.getElementById('recurringDetailBanner');
+  const thParent = document.getElementById('thParentRecurring');
+  const counter = document.getElementById('recurringItemCounter');
+  if (!banner) return;
+
+  const typeLabels = {
+    BREAKDOWN: 'Sự cố định kỳ',
+    DEPT_REQUEST: 'Yêu cầu P.Ban',
+    IMPROVEMENT: 'Cải tiến định kỳ',
+    INTERNAL: 'Nội bộ Kỹ thuật'
+  };
+
+  if (!templateId) {
+    banner.style.display = 'none';
+    if (thParent) thParent.style.display = '';
+    if (counter) {
+      counter.textContent = `${filteredRecurringItems.length} hạng mục con (${allRecurringTemplates.length} danh mục lớn)`;
+    }
+    return;
+  }
+
+  if (thParent) thParent.style.display = 'none';
+
+  const tpl = allRecurringTemplates.find(t => t.id == templateId);
+  if (!tpl) {
+    banner.style.display = 'none';
+    if (thParent) thParent.style.display = '';
+    return;
+  }
+
+  banner.style.display = 'block';
+  const tplItems = itemsByRecurringTemplate.get(templateId) || [];
+  const sampleCount = tplItems.filter(i => !!i.SampleImageUrl).length;
+  const proofCount = tplItems.filter(i => (Number(i.ProofCount) || 0) > 0).length;
+
+  document.getElementById('bannerTplCode').textContent = tpl.TemplateCode || 'REC';
+  document.getElementById('bannerTplMachine').textContent = `Máy: ${tpl.MachineID || 'Chung'}`;
+  document.getElementById('bannerTplType').textContent = `Loại: ${typeLabels[tpl.TaskType] || tpl.TaskType}`;
+  
+  const statusEl = document.getElementById('bannerTplStatus');
+  if (statusEl) {
+    statusEl.innerHTML = tpl.IsActive ? 
+      '<span class="badge badge-status-completed" style="font-size: 11px;">Đang kích hoạt</span>' : 
+      '<span class="badge badge-status-hold" style="font-size: 11px;">Đang tạm dừng</span>';
+  }
+
+  document.getElementById('bannerTplTitle').textContent = tpl.TaskTitle;
+
+  const cycleText = tpl.CycleType === 'INTERVAL_DAYS' ? 
+    `Mỗi ${tpl.IntervalDays} ngày` : 
+    `Ngày ${tpl.MonthlyDays} hàng tháng`;
+  document.getElementById('bannerTplCycle').textContent = cycleText;
+  document.getElementById('bannerTplAssignee').textContent = tpl.AssignedTo || 'Chưa phân công';
+  document.getElementById('bannerTplNextDue').textContent = tpl.NextDueDate ? formatDateTime(tpl.NextDueDate) : '-';
+  document.getElementById('bannerTplSpawned').textContent = `${tpl.TotalSpawned || 0} lần`;
+
+  document.getElementById('bannerStatItemsCount').textContent = `${tplItems.length} việc`;
+  document.getElementById('bannerStatSampleCount').textContent = `${sampleCount} / ${tplItems.length}`;
+  document.getElementById('bannerStatProofCount').textContent = `${proofCount} việc có ảnh`;
+
+  const btnToggle = document.getElementById('bannerBtnToggleActive');
+  if (btnToggle) {
+    btnToggle.textContent = tpl.IsActive ? 'Tạm Dừng' : 'Kích Hoạt';
+    btnToggle.style.color = tpl.IsActive ? '#F59E0B' : '#10B981';
+  }
+
+  if (counter) {
+    counter.textContent = `${tplItems.length} hạng mục kiểm tra con của [${tpl.TemplateCode}] ${tpl.TaskTitle}`;
+  }
+}
+
+function filterRecurringItems(refreshBanner = true) {
+  const query = (document.getElementById('recurringSearchInput')?.value || '').trim().toLowerCase();
+  const statusFilter = document.getElementById('filterRecurringStatus')?.value || '';
+  const imageStatus = document.getElementById('filterRecurringImageStatus')?.value || '';
+  const matchBadge = document.getElementById('recurringSearchMatchCount');
+
+  // 1. Filter recurring templates for Left Sidebar
+  filteredRecurringTemplates = allRecurringTemplates.filter(tpl => {
+    if (statusFilter === 'active' && !tpl.IsActive) return false;
+    if (statusFilter === 'paused' && tpl.IsActive) return false;
+
+    if (!query) return true;
+
+    const childItems = itemsByRecurringTemplate.get(tpl.id) || [];
+    const isTplMatch = (
+      (tpl.TemplateCode && tpl.TemplateCode.toLowerCase().includes(query)) ||
+      (tpl.TaskTitle && tpl.TaskTitle.toLowerCase().includes(query)) ||
+      (tpl.MachineID && tpl.MachineID.toLowerCase().includes(query)) ||
+      (tpl.AssignedTo && tpl.AssignedTo.toLowerCase().includes(query)) ||
+      (tpl.Description && tpl.Description.toLowerCase().includes(query))
+    );
+
+    const isChildMatch = childItems.some(i => (
+      (i.ItemTitle && i.ItemTitle.toLowerCase().includes(query)) ||
+      (i.StandardGuideline && i.StandardGuideline.toLowerCase().includes(query)) ||
+      (i.Note && i.Note.toLowerCase().includes(query)) ||
+      (i.AssignedTo && i.AssignedTo.toLowerCase().includes(query))
+    ));
+
+    return isTplMatch || isChildMatch;
+  });
+
+  renderRecurringMasterList(filteredRecurringTemplates, query);
+
+  // 2. Filter recurring items for Right Table
+  filteredRecurringItems = allRecurringItems.filter(item => {
+    // If specific template is selected, strictly filter by it
+    if (selectedRecurringTplId && item.TemplateID != selectedRecurringTplId) {
+      return false;
+    }
+
+    // Status filter
+    if (statusFilter === 'active' && !item.TemplateIsActive) return false;
+    if (statusFilter === 'paused' && item.TemplateIsActive) return false;
+
+    // Image status filter
+    if (imageStatus === 'has_sample' && !item.SampleImageUrl) return false;
+    if (imageStatus === 'no_sample' && item.SampleImageUrl) return false;
+    if (imageStatus === 'has_proof' && (!item.ProofCount || item.ProofCount <= 0)) return false;
+
+    // Search query
+    if (query) {
+      const matchItem = (
+        (item.ItemTitle && item.ItemTitle.toLowerCase().includes(query)) ||
+        (item.StandardGuideline && item.StandardGuideline.toLowerCase().includes(query)) ||
+        (item.Note && item.Note.toLowerCase().includes(query)) ||
+        (item.AssignedTo && item.AssignedTo.toLowerCase().includes(query)) ||
+        (item.TemplateCode && item.TemplateCode.toLowerCase().includes(query)) ||
+        (item.TaskTitle && item.TaskTitle.toLowerCase().includes(query)) ||
+        (item.MachineID && item.MachineID.toLowerCase().includes(query))
+      );
+      if (!matchItem) return false;
+    }
+
+    return true;
+  });
+
+  // Update match badge
+  if (matchBadge) {
+    if (query) {
+      matchBadge.style.display = 'inline-block';
+      matchBadge.textContent = `${filteredRecurringItems.length} việc khớp`;
+    } else {
+      matchBadge.style.display = 'none';
+    }
+  }
+
+  if (refreshBanner) {
+    updateRecurringDetailBanner(selectedRecurringTplId);
+  }
+
+  renderRecurringItemsTable(filteredRecurringItems, query);
+}
+
+function renderRecurringMasterList(templates, query = '') {
+  const container = document.getElementById('recurringMasterList');
+  if (!container) return;
+
+  if (templates.length === 0) {
+    container.innerHTML = `
+      <div class="master-empty-state">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color: var(--text-muted);">
+          <circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+        </svg>
+        <span>Không có hạng mục phù hợp</span>
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = templates.map(tpl => {
+    const childItems = itemsByRecurringTemplate.get(tpl.id) || [];
+    const sampleCount = childItems.filter(i => !!i.SampleImageUrl).length;
+    const isActiveCard = selectedRecurringTplId == tpl.id;
+
+    let cycleDesc = '';
+    if (tpl.CycleType === 'INTERVAL_DAYS') {
+      cycleDesc = `Mỗi ${tpl.IntervalDays} ngày`;
+    } else {
+      cycleDesc = `Ngày ${tpl.MonthlyDays} h.tháng`;
+    }
+
+    return `
+      <div class="master-card ${isActiveCard ? 'active' : ''}" data-tpl-id="${tpl.id}" onclick="selectRecurringTemplate(${tpl.id})">
+        <div class="master-card-header">
+          <span class="badge-workid">${highlightText(tpl.TemplateCode, query)}</span>
+          <div style="display: flex; gap: 4px; align-items: center;">
+            <span class="master-task-badge">${childItems.length} mục</span>
+            <span style="font-size: 0.65rem; padding: 1px 5px; border-radius: 4px; ${tpl.IsActive ? 'background: rgba(16, 185, 129, 0.15); color: #34D399;' : 'background: rgba(245, 158, 11, 0.15); color: #FBBF24;'}">
+              ${tpl.IsActive ? 'Active' : 'Paused'}
+            </span>
+          </div>
+        </div>
+        <div class="master-card-title">${highlightText(tpl.TaskTitle, query)}</div>
+        <div class="master-card-meta">
+          <span>Máy: <strong style="color: #F8FAFC;">${escapeHtml(tpl.MachineID || 'Chung')}</strong></span>
+          <span>•</span>
+          <span>${cycleDesc}</span>
+          ${sampleCount > 0 ? `<span style="color: #38BDF8;">• 📸 ${sampleCount} ảnh</span>` : ''}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function renderRecurringItemsTable(items, query = '') {
+  const tbody = document.getElementById('recurringItemsTableBody');
+  if (!tbody) return;
+
+  const isViewingAll = !selectedRecurringTplId;
+
+  if (items.length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="8" style="text-align: center; padding: 48px 16px; color: var(--text-muted);">
+          <div style="font-size: 30px; margin-bottom: 8px;">📋</div>
+          <div style="font-weight: 600; color: var(--text-secondary); margin-bottom: 6px;">Không tìm thấy hạng mục con nào</div>
+          <div style="font-size: 0.8rem;">
+            ${selectedRecurringTplId ? 'Mẫu này chưa có hạng mục kiểm tra con nào. Bấm nút dưới để thêm:' : 'Hãy thử thay đổi từ khóa hoặc bộ lọc.'}
+          </div>
+          ${selectedRecurringTplId ? `
+            <div style="margin-top: 14px;">
+              <button type="button" class="btn-primary" style="padding: 6px 16px; font-size: 0.8rem; background: #10B981;" onclick="openQuickSubItemModal(${selectedRecurringTplId})">
+                + Thêm Hạng Mục Con Đầu Tiên
+              </button>
+            </div>
+          ` : ''}
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  tbody.innerHTML = items.map((item, idx) => {
+    const hasSample = !!item.SampleImageUrl;
+    const proofCount = Number(item.ProofCount) || 0;
+    const itemNumber = idx + 1;
+
+    // Parent Recurring Column (only shown when viewing All)
+    const parentTplTd = isViewingAll ? `
+      <td>
+        <div style="font-weight: 700; color: #818CF8; font-size: 12px; font-family: 'JetBrains Mono', monospace;">
+          ${highlightText(item.TemplateCode || 'REC', query)}
+        </div>
+        <div style="font-size: 12px; color: var(--text-muted); line-height: 1.3;">
+          ${highlightText(item.TaskTitle || '', query)}
+        </div>
+      </td>
+    ` : '';
+
+    // Sample Image HTML (same as categories.html)
+    const sampleImgHtml = hasSample ? `
+      <div class="tmpl-thumb-wrapper" onclick="openLightbox('${item.SampleImageUrl}', 'Ảnh Mẫu SOP: ${escapeHtml(item.ItemTitle)}')">
+        <img src="${item.SampleImageUrl}" alt="Ảnh mẫu SOP" class="tmpl-thumb-img" loading="lazy" decoding="async" onerror="this.onerror=null;this.src='/static/placeholder-camera.svg';">
+        <span class="tmpl-thumb-badge">Ảnh mẫu</span>
+      </div>
+    ` : `
+      <div class="tmpl-no-img">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+          <circle cx="8.5" cy="8.5" r="1.5"></circle>
+          <polyline points="21 15 16 10 5 21"></polyline>
+        </svg>
+        <span>Chưa có ảnh</span>
+      </div>
+    `;
+
+    // Proof Button HTML (same as categories.html)
+    const proofBtnHtml = `
+      <button type="button" class="btn-proof-history ${proofCount > 0 ? 'has-proof' : ''}" onclick="openItemSampleModalById(${item.id})" title="Xem ${proofCount} hình ảnh kỹ thuật viên đã chụp khi thực hiện">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+          <circle cx="12" cy="13" r="4"></circle>
+        </svg>
+        <span>${proofCount} ảnh</span>
+      </button>
+    `;
+
+    // Guideline text
+    const guidelineText = item.StandardGuideline ? 
+      highlightText(item.StandardGuideline, query) : 
+      '<span style="color: var(--text-muted); font-style: italic;">Chưa có hướng dẫn SOP chuẩn</span>';
+
+    return `
+      <tr data-item-id="${item.id}">
+        <td style="text-align: center; font-weight: 600; color: var(--text-muted); font-size: 12px;">${itemNumber}</td>
+        ${parentTplTd}
+        <td>
+          <div style="color: #F8FAFC; font-weight: 600; font-size: 13px; line-height: 1.35;">${highlightText(item.ItemTitle, query)}</div>
+          ${item.Note ? `<div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">${highlightText(item.Note, query)}</div>` : ''}
+        </td>
+        <td>
+          <div style="font-size: 12px; color: #93C5FD; font-weight: 600;">${highlightText(item.AssignedTo || 'Chưa phân công', query)}</div>
+          ${item.Department ? `<div style="font-size: 11px; color: var(--text-muted);">${escapeHtml(item.Department)}</div>` : ''}
+        </td>
+        <td style="text-align: center;">${sampleImgHtml}</td>
+        <td style="text-align: center;">${proofBtnHtml}</td>
+        <td class="guideline-cell" style="font-size: 12px; line-height: 1.35; color: #E2E8F0;">${guidelineText}</td>
+        <td style="text-align: center;">
+          <div style="display: flex; gap: 4px; justify-content: center; align-items: center; flex-wrap: wrap;">
+            <button type="button" class="btn-action-edit" onclick="openItemSampleModalById(${item.id})" title="Quản lý ảnh mẫu SOP & hướng dẫn tiêu chuẩn">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+                <circle cx="12" cy="13" r="4"></circle>
+              </svg>
+              <span>Mẫu SOP</span>
+            </button>
+            <button type="button" class="btn-secondary" style="padding: 4px 7px; font-size: 0.72rem;" onclick="openQuickEditSubItemModal(${item.id})" title="Chỉnh sửa hạng mục con">
+              ✏️
+            </button>
+            <button type="button" class="btn-secondary" style="padding: 4px 6px; font-size: 0.72rem; color: #EF4444;" onclick="deleteSubItem(${item.id})" title="Xóa hạng mục con">
+              ✕
+            </button>
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+// Quick Sub-item Modals & Actions
+function openQuickSubItemModal(templateId = null) {
+  const tplId = templateId || selectedRecurringTplId;
+  if (!tplId) {
+    showToast('Vui lòng chọn 1 hạng mục định kỳ ở cột trái trước khi thêm việc con!', 'warning');
+    return;
+  }
+  const modal = document.getElementById('quickSubItemModal');
+  if (!modal) return;
+  document.getElementById('formQuickSubItem')?.reset();
+  document.getElementById('quickSubItemModalTitle').textContent = 'Thêm Hạng Mục Kiểm Tra Con';
+  document.getElementById('quickSubItemTplId').value = tplId;
+  document.getElementById('quickSubItemId').value = '';
+  const sel = document.getElementById('quickSubItemAssignee');
+  if (sel) sel.innerHTML = buildEmployeeSelectOptions('', '-- Chọn kỹ thuật viên --');
+  modal.classList.add('open', 'active');
+}
+
+function openQuickEditSubItemModal(itemId) {
+  const item = allRecurringItems.find(i => i.id == itemId);
+  if (!item) return;
+  const modal = document.getElementById('quickSubItemModal');
+  if (!modal) return;
+  document.getElementById('quickSubItemModalTitle').textContent = 'Chỉnh Sửa Hạng Mục Con';
+  document.getElementById('quickSubItemTplId').value = item.TemplateID || '';
+  document.getElementById('quickSubItemId').value = item.id;
+  document.getElementById('quickSubItemTitle').value = item.ItemTitle || '';
+  document.getElementById('quickSubItemDept').value = item.Department || 'Cơ điện';
+  document.getElementById('quickSubItemGuideline').value = item.StandardGuideline || '';
+  document.getElementById('quickSubItemNote').value = item.Note || '';
+  const sel = document.getElementById('quickSubItemAssignee');
+  if (sel) sel.innerHTML = buildEmployeeSelectOptions(item.AssignedTo || '', '-- Chọn kỹ thuật viên --');
+  modal.classList.add('open', 'active');
+}
+
+function closeQuickSubItemModal() {
+  document.getElementById('quickSubItemModal')?.classList.remove('open', 'active');
+}
+
+async function submitQuickSubItem(e) {
+  e.preventDefault();
+  const tplId = document.getElementById('quickSubItemTplId')?.value;
+  const itemId = document.getElementById('quickSubItemId')?.value;
+  const title = document.getElementById('quickSubItemTitle')?.value.trim();
+  if (!title) return;
+
+  const sel = document.getElementById('quickSubItemAssignee');
+  const opt = sel ? sel.options[sel.selectedIndex] : null;
+  const payload = {
+    ItemTitle: title,
+    AssignedTo: sel ? sel.value : '',
+    AssignedEmpID: opt ? opt.dataset.empid || '' : '',
+    Department: document.getElementById('quickSubItemDept')?.value.trim() || 'Cơ điện',
+    StandardGuideline: document.getElementById('quickSubItemGuideline')?.value.trim() || '',
+    Note: document.getElementById('quickSubItemNote')?.value.trim() || ''
+  };
+
+  try {
+    if (itemId) {
+      const res = await fetch(`/api/internal-tasks/items/${itemId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if (!res.ok) throw new Error('Không thể cập nhật hạng mục con');
+      showToast('Đã cập nhật hạng mục con thành công!', 'success');
+    } else {
+      const res = await fetch(`/api/internal-tasks/recurring-templates/${tplId}/items`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if (!res.ok) throw new Error('Không thể thêm hạng mục con');
+      showToast('Đã thêm hạng mục con mới thành công!', 'success');
+    }
+    closeQuickSubItemModal();
+    await loadRecurringData();
+  } catch (err) {
+    console.error(err);
+    showToast(err.message || 'Lỗi khi lưu hạng mục con', 'error');
+  }
+}
+
+async function deleteSubItem(itemId) {
+  if (!confirm('Bạn có chắc chắn muốn xóa hạng mục kiểm tra này không?')) return;
+  try {
+    const res = await fetch(`/api/internal-tasks/items/${itemId}`, { method: 'DELETE' });
+    if (!res.ok) throw new Error('Không thể xóa hạng mục');
+    showToast('Đã xóa hạng mục con thành công!', 'success');
+    await loadRecurringData();
+  } catch (err) {
+    console.error(err);
+    showToast(err.message || 'Lỗi khi xóa hạng mục', 'error');
+  }
+}
+
+// Banner Template Actions
+function spawnCurrentSelectedTemplate() {
+  if (selectedRecurringTplId) {
+    spawnTaskFromTemplate(selectedRecurringTplId);
+  }
+}
+
+function editCurrentSelectedTemplate() {
+  if (selectedRecurringTplId) {
+    openEditRecurringTemplateModal(selectedRecurringTplId);
+  }
+}
+
+function toggleCurrentTemplateActive() {
+  if (!selectedRecurringTplId) return;
+  const tpl = allRecurringTemplates.find(t => t.id == selectedRecurringTplId);
+  if (tpl) {
+    toggleTemplateActive(tpl.id, tpl.IsActive ? 0 : 1);
+  }
+}
+
+function deleteCurrentSelectedTemplate() {
+  if (selectedRecurringTplId) {
+    deleteRecurringTemplate(selectedRecurringTplId);
+  }
+}
+
+// Recurring Template Modal Management (Add & Edit)
+async function openRecurringTemplateModal(templateId = null) {
+  const modal = document.getElementById('recurringTemplateModal');
+  if (!modal) return;
+
+  if (allEmployees.length === 0) {
+    await loadEmployees();
+  }
+
+  document.getElementById('formRecurringTemplate')?.reset();
+  const titleEl = document.getElementById('tplModalHeaderTitle');
+  const selAssignee = document.getElementById('tplAssignee');
+  const itemsContainer = document.getElementById('tplItemsContainer');
+
+  let tplToEdit = null;
+  if (templateId) {
+    tplToEdit = allRecurringTemplates.find(t => t.id == templateId);
+  }
+
+  if (tplToEdit) {
+    document.getElementById('tplId').value = tplToEdit.id;
+    if (titleEl) titleEl.textContent = 'Chỉnh Sửa Hạng Mục Định Kỳ';
+    
+    const tplTitle = document.getElementById('tplTaskTitle');
+    if (tplTitle) tplTitle.value = tplToEdit.TaskTitle || '';
+    
+    const tplMachine = document.getElementById('tplMachine');
+    if (tplMachine) tplMachine.value = tplToEdit.MachineID || '';
+    
+    const tplRequester = document.getElementById('tplRequester');
+    if (tplRequester) tplRequester.value = tplToEdit.RequestedBy || '';
+    
+    const tplDept = document.getElementById('tplDept');
+    if (tplDept) tplDept.value = tplToEdit.Department || 'KỸ THUẬT';
+    
+    const tplTaskType = document.getElementById('tplTaskType');
+    if (tplTaskType) tplTaskType.value = tplToEdit.TaskType || 'INTERNAL';
+    
+    const tplPriority = document.getElementById('tplPriority');
+    if (tplPriority) tplPriority.value = tplToEdit.Priority || 'NORMAL';
+    
+    if (selAssignee) {
+      selAssignee.innerHTML = buildEmployeeSelectOptions(tplToEdit.AssignedTo || '', '-- Chọn kỹ thuật viên phụ trách --');
+    }
+
+    selectTplCycleType(tplToEdit.CycleType || 'INTERVAL_DAYS');
+    if (tplToEdit.CycleType === 'MONTHLY_DAYS') {
+      const days = (tplToEdit.MonthlyDays || '').split(',');
+      document.querySelectorAll('.month-day-btn').forEach(btn => {
+        if (days.includes(btn.dataset.val)) {
+          btn.classList.add('selected');
+        } else {
+          btn.classList.remove('selected');
+        }
+      });
+    } else {
+      setTplInterval(tplToEdit.IntervalDays || 15);
+    }
+
+    const lblSpawn = document.getElementById('lblTplSpawnImmediately');
+    if (lblSpawn) lblSpawn.style.display = 'none';
+    const chkSpawn = document.getElementById('tplSpawnImmediately');
+    if (chkSpawn) chkSpawn.checked = false;
+
+    if (itemsContainer) {
+      itemsContainer.innerHTML = '<div style="color:var(--text-muted);font-size:0.85rem;">Đang tải hạng mục con...</div>';
+      try {
+        const res = await fetch(`/api/internal-tasks/recurring-templates/${tplToEdit.id}/items`);
+        if (res.ok) {
+          const fetchedItems = await res.json();
+          itemsContainer.innerHTML = '';
+          if (fetchedItems.length > 0) {
+            fetchedItems.forEach(it => addTplItemRow(it));
+          } else {
+            addTplItemRow();
+          }
+        } else {
+          itemsContainer.innerHTML = '';
+          addTplItemRow();
+        }
+      } catch (err) {
+        itemsContainer.innerHTML = '';
+        addTplItemRow();
+      }
+    }
+    
+    const chkAuto = document.getElementById('tplAutoRecreate');
+    if (chkAuto) chkAuto.checked = !!tplToEdit.IsActive;
+
+  } else {
+    // Add new
+    document.getElementById('tplId').value = '';
+    if (titleEl) titleEl.textContent = 'Thiết Lập Hạng Mục Công Việc Định Kỳ';
+    if (selAssignee) {
+      selAssignee.innerHTML = buildEmployeeSelectOptions('', '-- Chọn kỹ thuật viên phụ trách --');
+    }
+    if (itemsContainer) {
+      itemsContainer.innerHTML = '';
+      addTplItemRow();
+    }
+    
+    const lblSpawn = document.getElementById('lblTplSpawnImmediately');
+    if (lblSpawn) lblSpawn.style.display = 'flex';
+    const chkSpawn = document.getElementById('tplSpawnImmediately');
+    if (chkSpawn) chkSpawn.checked = true;
+
+    selectTplCycleType('INTERVAL_DAYS');
+    setTplInterval(15);
+    
+    const chkAuto = document.getElementById('tplAutoRecreate');
+    if (chkAuto) chkAuto.checked = true;
+
+    const storedUser = localStorage.getItem('bopp_user') || sessionStorage.getItem('bopp_user');
+    if (storedUser) {
+      try {
+        const u = JSON.parse(storedUser);
+        const tplReq = document.getElementById('tplRequester');
+        if (u.full_name && tplReq) {
+          tplReq.value = u.full_name;
+        }
+      } catch (e) {}
+    }
+  }
+
+  modal.classList.add('open', 'active');
+}
+
+function addTplItemRow(itemData = {}) {
+  const container = document.getElementById('tplItemsContainer');
+  if (!container) return;
+
+  const row = document.createElement('div');
+  row.className = 'tpl-item-row';
+  row.style = 'display: grid; grid-template-columns: 2fr 1.3fr 1fr auto auto; gap: 8px; align-items: center; background: rgba(0,0,0,0.25); padding: 8px 10px; border-radius: var(--radius-sm); border: 1px solid rgba(255,255,255,0.06);';
+
+  const hasSample = !!itemData.SampleImageUrl;
+
+  row.innerHTML = `
+    <input type="text" class="form-input tpl-item-title" style="padding: 6px 10px; font-size: 0.82rem;" placeholder="Nội dung kiểm tra định kỳ..." value="${escapeHtml(itemData.ItemTitle || '')}">
+    <select class="form-select tpl-item-assignee" style="padding: 6px 10px; font-size: 0.82rem;">
+      ${buildEmployeeSelectOptions(itemData.AssignedTo || '', '-- Chọn người thực hiện --')}
+    </select>
+    <input type="text" class="form-input tpl-item-note" style="padding: 6px 10px; font-size: 0.82rem;" placeholder="Tiêu chuẩn / thông số..." value="${escapeHtml(itemData.Note || itemData.Notes || '')}">
+    <input type="hidden" class="tpl-item-sample-url" value="${escapeHtml(itemData.SampleImageUrl || '')}">
+    <div style="display: flex; align-items: center; gap: 4px;">
+      <div class="item-sample-thumb-box" style="width: 28px; height: 28px; border-radius: 4px; overflow: hidden; border: 1px solid #38BDF8; background: #000; cursor: pointer; flex-shrink: 0; display: ${hasSample ? 'block' : 'none'};" onclick="openLightbox('${itemData.SampleImageUrl || ''}', 'Ảnh Mẫu SOP')" title="Xem ảnh mẫu">
+        ${hasSample ? `<img src="${itemData.SampleImageUrl}" style="width: 100%; height: 100%; object-fit: cover;">` : ''}
+      </div>
+      <button type="button" class="btn-secondary btn-item-sample-trigger" style="padding: 3px 6px; font-size: 0.72rem; color: ${hasSample ? '#38BDF8' : 'var(--text-muted)'}; white-space: nowrap;" onclick="openItemSampleModal(${itemData.id || 0}, this.closest('.tpl-item-row').querySelector('.tpl-item-title')?.value || '${escapeHtml(itemData.ItemTitle || '')}', '${itemData.SampleImageUrl || ''}', '', this.closest('.tpl-item-row'), 'recurring')" title="Xem ảnh cũ / Chọn ảnh mẫu">
+        📷 ${hasSample ? 'Mẫu' : '+ Mẫu'}
+      </button>
+    </div>
+    <button type="button" class="btn-clear" style="color: #EF4444; padding: 4px 6px; font-size: 0.85rem;" title="Xóa dòng này" onclick="this.closest('.tpl-item-row').remove()">
+      ✕
+    </button>
+  `;
+  container.appendChild(row);
+}
+
+async function openEditRecurringTemplateModal(templateId) {
+  if (allEmployees.length === 0) {
+    await loadEmployees();
+  }
+  let tpl = allRecurringTemplates.find(t => t.id == templateId);
+  let templateItems = [];
+  try {
+    const res = await fetch(`/api/internal-tasks/recurring-templates/${templateId}`);
+    if (res.ok) {
+      const data = await res.json();
+      tpl = data;
+      templateItems = data.items || [];
+    }
+  } catch (e) {}
+
+  if (!tpl) {
+    showToast('Không tìm thấy thông tin hạng mục định kỳ!', 'error');
+    return;
+  }
+
+  const modal = document.getElementById('recurringTemplateModal');
+  if (!modal) return;
+
+  document.getElementById('tplId').value = tpl.id;
+  document.getElementById('tplModalHeaderTitle').textContent = `Cập Nhật Hạng Mục: ${tpl.TemplateCode || 'REC'}`;
+
+  document.getElementById('tplTaskTitle').value = tpl.TaskTitle || '';
+  document.getElementById('tplTaskType').value = tpl.TaskType || 'INTERNAL';
+  document.getElementById('tplPriority').value = tpl.Priority || 'NORMAL';
+  document.getElementById('tplMachine').value = tpl.MachineID || '';
+  document.getElementById('tplDept').value = tpl.Department || 'KỸ THUẬT';
+  document.getElementById('tplRequester').value = tpl.RequesterName || '';
+
+  // Populate employee select with current assignee
+  const selAssignee = document.getElementById('tplAssignee');
+  if (selAssignee) {
+    selAssignee.innerHTML = buildEmployeeSelectOptions(tpl.AssignedTo || '', '-- Chọn kỹ thuật viên phụ trách --');
+  }
+
+  document.getElementById('tplDesc').value = tpl.Description || '';
+
+  // Populate sub-items
+  const itemsContainer = document.getElementById('tplItemsContainer');
+  if (itemsContainer) {
+    itemsContainer.innerHTML = '';
+    if (templateItems.length > 0) {
+      templateItems.forEach(item => addTplItemRow(item));
+    } else {
+      addTplItemRow();
+    }
+  }
+
+  selectTplCycleType(tpl.CycleType || 'INTERVAL_DAYS');
+  if (tpl.CycleType === 'MONTHLY_DAYS') {
+    document.getElementById('tplMonthlyDays').value = tpl.MonthlyDays || '';
+  } else {
+    document.getElementById('tplIntervalDays').value = tpl.IntervalDays || 15;
+  }
+
+  document.getElementById('tplAutoRecreate').checked = !!tpl.AutoRecreateOnComplete;
+
+  // Don't show "Spawn immediately" checkbox on edit
+  const lblSpawn = document.getElementById('lblTplSpawnImmediately');
+  if (lblSpawn) lblSpawn.style.display = 'none';
+
+  modal.classList.add('open', 'active');
+}
+
+function closeRecurringTemplateModal() {
+  const modal = document.getElementById('recurringTemplateModal');
+  if (modal) modal.classList.remove('open', 'active');
+  document.getElementById('formRecurringTemplate')?.reset();
+}
+
+function selectTplCycleType(type) {
+  tplModalCycleType = type;
+  const pillInterval = document.getElementById('pillTplCycleInterval');
+  const pillMonthly = document.getElementById('pillTplCycleMonthly');
+  const panelInterval = document.getElementById('panelTplCycleInterval');
+  const panelMonthly = document.getElementById('panelTplCycleMonthly');
+
+  if (type === 'INTERVAL_DAYS') {
+    pillInterval?.classList.add('active');
+    pillMonthly?.classList.remove('active');
+    if (panelInterval) panelInterval.style.display = 'block';
+    if (panelMonthly) panelMonthly.style.display = 'none';
+  } else {
+    pillInterval?.classList.remove('active');
+    pillMonthly?.classList.add('active');
+    if (panelInterval) panelInterval.style.display = 'none';
+    if (panelMonthly) panelMonthly.style.display = 'block';
+  }
+}
+
+function setTplInterval(days) {
+  const inp = document.getElementById('tplIntervalDays');
+  if (inp) inp.value = days;
+}
+
+function setTplMonthlyDays(daysStr) {
+  const inp = document.getElementById('tplMonthlyDays');
+  if (inp) inp.value = daysStr;
+}
+
+async function submitSaveRecurringTemplate(e) {
+  e.preventDefault();
+  const tplId = document.getElementById('tplId')?.value;
+  const btn = document.getElementById('btnSubmitRecurringTemplate');
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = 'Đang Lưu...';
+  }
+
+  // Collect sub-items
+  const itemRows = document.querySelectorAll('#tplItemsContainer .tpl-item-row');
+  const items = [];
+  itemRows.forEach((r, idx) => {
+    const title = (r.querySelector('.tpl-item-title')?.value || '').trim();
+    if (title) {
+      const sel = r.querySelector('.tpl-item-assignee');
+      const opt = sel ? sel.options[sel.selectedIndex] : null;
+      items.push({
+        ItemTitle: title,
+        AssignedTo: sel ? sel.value : '',
+        AssignedEmpID: opt ? opt.dataset.empid || '' : '',
+        Department: opt ? opt.dataset.dept || 'Cơ điện' : 'Cơ điện',
+        Note: (r.querySelector('.tpl-item-note')?.value || '').trim(),
+        SampleImageUrl: (r.querySelector('.tpl-item-sample-url')?.value || '').trim(),
+        ItemOrder: idx + 1
+      });
+    }
+  });
+
+  const payload = {
+    TaskTitle: document.getElementById('tplTaskTitle').value.trim(),
+    TaskType: document.getElementById('tplTaskType').value,
+    Priority: document.getElementById('tplPriority').value,
+    MachineID: document.getElementById('tplMachine').value.trim(),
+    Department: document.getElementById('tplDept').value.trim(),
+    RequesterName: document.getElementById('tplRequester').value.trim(),
+    AssignedTo: document.getElementById('tplAssignee').value.trim(),
+    Description: document.getElementById('tplDesc').value.trim(),
+    CycleType: tplModalCycleType,
+    AutoRecreateOnComplete: document.getElementById('tplAutoRecreate').checked ? 1 : 0,
+    Items: items.length > 0 ? items : undefined
+  };
+
+  if (tplModalCycleType === 'INTERVAL_DAYS') {
+    payload.IntervalDays = Number(document.getElementById('tplIntervalDays').value) || 15;
+  } else {
+    const monthlyVal = (document.getElementById('tplMonthlyDays')?.value || '').trim();
+    if (!monthlyVal) {
+      showToast('Vui lòng nhập các ngày trong tháng (ví dụ: 11, 21, 31)!', 'warning');
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = 'Lưu Hạng Mục Định Kỳ';
+      }
+      return;
+    }
+    payload.MonthlyDays = monthlyVal;
+  }
+
+  if (!tplId) {
+    payload.SpawnImmediately = document.getElementById('tplSpawnImmediately')?.checked || false;
+  }
+
+  try {
+    const url = tplId ? `/api/internal-tasks/recurring-templates/${tplId}` : '/api/internal-tasks/recurring-templates';
+    const method = tplId ? 'PUT' : 'POST';
+
+    const res = await fetch(url, {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'Lỗi khi lưu hạng mục định kỳ');
+
+    const finalTplId = tplId || data.template_id;
+
+    showToast(data.message || 'Lưu thành công hạng mục định kỳ!', 'success');
+    closeRecurringTemplateModal();
+    await loadRecurringData();
+    await loadTasks();
+  } catch (err) {
+    console.error('Lỗi lưu template:', err);
+    showToast(err.message || 'Không thể lưu hạng mục định kỳ', 'error');
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = 'Lưu Hạng Mục Định Kỳ';
+    }
+  }
+}
+
+async function spawnTaskFromTemplate(templateId) {
+  try {
+    showToast('Đang khởi tạo công việc chu kỳ...', 'info');
+    const res = await fetch(`/api/internal-tasks/recurring-templates/${templateId}/spawn-now`, {
+      method: 'POST'
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'Lỗi khi khởi tạo công việc chu kỳ');
+
+    showToast(data.message || 'Khởi tạo công việc thành công!', 'success');
+    await loadRecurringData();
+    await loadTasks();
+  } catch (err) {
+    console.error('Lỗi spawn task:', err);
+    showToast(err.message || 'Không thể khởi tạo công việc', 'error');
+  }
+}
+
+async function toggleTemplateActive(templateId, newActive) {
+  try {
+    const res = await fetch(`/api/internal-tasks/recurring-templates/${templateId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ IsActive: newActive })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'Không thể cập nhật trạng thái');
+
+    showToast(newActive ? 'Đã kích hoạt chu kỳ hạng mục!' : 'Đã tạm dừng chu kỳ hạng mục!', 'info');
+    await loadRecurringData();
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+async function deleteRecurringTemplate(templateId) {
+  if (!confirm('Bạn có chắc chắn muốn xóa quy chuẩn hạng mục định kỳ này không? Các công việc đã tạo trước đây vẫn sẽ được giữ nguyên.')) {
+    return;
+  }
+
+  try {
+    const res = await fetch(`/api/internal-tasks/recurring-templates/${templateId}`, {
+      method: 'DELETE'
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'Lỗi khi xóa hạng mục');
+
+    if (selectedRecurringTplId == templateId) {
+      selectedRecurringTplId = null;
+    }
+    showToast('Đã xóa thành công hạng mục định kỳ!', 'success');
+    await loadRecurringData();
+    await loadTasks();
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+// =========================================================================
+// TASK DETAIL & UPDATE WORKFLOW
+// =========================================================================
+async function openTaskDetail(taskId) {
+  const modal = document.getElementById('taskDetailModal');
+  if (!modal) return;
+
+  if (allEmployees.length === 0) {
+    await loadEmployees();
+  }
+
+  // 1. Open view immediately for instant response
+  modal.classList.add('open', 'active');
+  document.body.classList.add('mobile-view-detail');
+  try {
+    history.pushState({ modal: 'taskDetail', id: taskId }, '');
+  } catch (e) {}
+
+  // 2. Pre-populate basic cached data so there's zero UI latency
+  const cached = allTasks.find(t => t.id == taskId);
+  if (cached) {
+    document.getElementById('modalDetailCode').textContent = cached.TaskCode || '';
+    document.getElementById('modalDetailTitle').textContent = cached.TaskTitle || '';
+    document.getElementById('modalDetailMachine').textContent = cached.MachineID || 'Chung / Không gắn máy';
+    document.getElementById('modalDetailRequester').textContent = cached.RequesterName || '-';
+    document.getElementById('modalDetailDept').textContent = cached.Department || 'KỸ THUẬT';
+    document.getElementById('modalDetailReportedAt').textContent = formatDateTime(cached.ReportedAt);
+    document.getElementById('modalDetailDesc').textContent = cached.Description || 'Không có mô tả chi tiết.';
+    const modalAssignedToSelect = document.getElementById('modalDetailAssignedTo');
+    if (modalAssignedToSelect) {
+      modalAssignedToSelect.innerHTML = buildEmployeeSelectOptions(cached.AssignedTo || '');
+    }
+    document.getElementById('modalDetailDowntime').value = cached.DowntimeMinutes || '';
+    document.getElementById('modalDetailSolution').value = cached.Solution || '';
+
+    const cachedStatusSelect = document.getElementById('modalDetailStatusSelect');
+    if (cachedStatusSelect && cached.Status) {
+      cachedStatusSelect.value = cached.Status;
+      updateStatusDropdownStyle(cachedStatusSelect, cached.Status);
+    }
+  }
+
+  try {
+    const res = await fetch(`/api/internal-tasks/${taskId}`);
+    if (!res.ok) throw new Error('Không thể tải chi tiết công việc');
+    const task = await res.json();
+    currentEditingTask = task;
+
+    // Populate header & badges
+    document.getElementById('modalDetailCode').textContent = task.TaskCode;
+    document.getElementById('modalDetailTitle').textContent = task.TaskTitle;
+
+    const typeLabels = {
+      BREAKDOWN: { text: 'Sự Cố Máy', class: 'badge-type-breakdown' },
+      DEPT_REQUEST: { text: 'Yêu Cầu P.Ban', class: 'badge-type-dept' },
+      IMPROVEMENT: { text: 'Cải Tiến', class: 'badge-type-improvement' },
+      INTERNAL: { text: 'Nội Bộ Kỹ Thuật', class: 'badge-type-internal' }
+    };
+    const priorityLabels = {
+      URGENT: { text: 'Khẩn Cấp', class: 'badge-prio-urgent' },
+      HIGH: { text: 'Ưu Tiên Cao', class: 'badge-prio-high' },
+      NORMAL: { text: 'Bình Thường', class: 'badge-prio-normal' },
+      LOW: { text: 'Thấp', class: 'badge-prio-normal' }
+    };
+    const statusLabels = {
+      PENDING: { text: 'Chờ Xử Lý', class: 'badge-status-pending' },
+      IN_PROGRESS: { text: 'Đang Thực Hiện', class: 'badge-status-inprogress' },
+      HOLD: { text: 'Tạm Hoãn', class: 'badge-status-hold' },
+      COMPLETED: { text: 'Hoàn Tất Nghiệm Thu', class: 'badge-status-completed' }
+    };
+
+    const typeInfo = typeLabels[task.TaskType] || { text: task.TaskType, class: 'badge-type-internal' };
+    const prioInfo = priorityLabels[task.Priority] || { text: task.Priority, class: 'badge-prio-normal' };
+    const statusInfo = statusLabels[task.Status] || { text: task.Status, class: 'badge-status-pending' };
+
+    document.getElementById('modalDetailTypeBadge').innerHTML = `<span class="badge ${typeInfo.class}">${typeInfo.text}</span>`;
+    document.getElementById('modalDetailPriorityBadge').innerHTML = `<span class="badge ${prioInfo.class}">${prioInfo.text}</span>`;
+    document.getElementById('modalDetailStatusBadge').innerHTML = `<span class="badge ${statusInfo.class}">${statusInfo.text}</span>`;
+
+    // Cập nhật giá trị và màu sắc menu dropdown trạng thái
+    const statusSelect = document.getElementById('modalDetailStatusSelect');
+    if (statusSelect) {
+      statusSelect.value = task.Status || 'PENDING';
+      updateStatusDropdownStyle(statusSelect, task.Status || 'PENDING');
+    }
+
+    // Recurring banner in detail modal
+    const recBanner = document.getElementById('modalDetailRecurringBanner');
+    if (recBanner) {
+      if (task.RecurringTemplateID) {
+        recBanner.style.display = 'flex';
+        const recTitle = document.getElementById('modalDetailRecurringTitle');
+        const recSub = document.getElementById('modalDetailRecurringSub');
+        const tplCodePrefix = task.template?.TemplateCode ? `[${task.template.TemplateCode}] ` : '';
+        if (recTitle) recTitle.textContent = `Hạng mục định kỳ: ${tplCodePrefix}${task.CycleInfo || 'Lặp lại định kỳ'}`;
+        if (recSub) {
+          recSub.textContent = `Chu kỳ thực hiện lần #${task.RecurringCount || 1}${task.NextDueDate ? ' • Hạn hoàn thành: ' + formatDateTime(task.NextDueDate) : ''}`;
+        }
+      } else {
+        recBanner.style.display = 'none';
+      }
+    }
+
+    // Sample image SOP card in detail modal
+    const sampleCard = document.getElementById('modalDetailSampleImageCard');
+    if (sampleCard) {
+      if (task.template && task.template.SampleImageUrl) {
+        sampleCard.style.display = 'block';
+        const thumb = document.getElementById('modalDetailSampleThumb');
+        const title = document.getElementById('modalDetailSampleTitle');
+        if (thumb) thumb.src = task.template.SampleImageUrl;
+        if (title) title.textContent = task.template.TemplateName || 'Quy chuẩn mẫu định kỳ';
+      } else {
+        sampleCard.style.display = 'none';
+      }
+    }
+
+    // Populate Meta
+    document.getElementById('modalDetailMachine').textContent = task.MachineID || 'Chung / Không gắn máy';
+    document.getElementById('modalDetailRequester').textContent = task.RequesterName || '-';
+    document.getElementById('modalDetailDept').textContent = task.Department || 'KỸ THUẬT';
+    document.getElementById('modalDetailReportedAt').textContent = formatDateTime(task.ReportedAt);
+    document.getElementById('modalDetailDesc').textContent = task.Description || 'Không có mô tả chi tiết.';
+
+    // Populate Form fields
+    const modalAssignedToSelect = document.getElementById('modalDetailAssignedTo');
+    if (modalAssignedToSelect) {
+      modalAssignedToSelect.innerHTML = buildEmployeeSelectOptions(task.AssignedTo || '');
+    }
+    const detailNewAssignee = document.getElementById('detailNewItemAssignee');
+    if (detailNewAssignee) {
+      detailNewAssignee.innerHTML = buildEmployeeSelectOptions('');
+    }
+    document.getElementById('modalDetailDowntime').value = task.DowntimeMinutes || '';
+    document.getElementById('modalDetailSolution').value = task.Solution || '';
+
+    // Render Checklist Sub-items
+    renderDetailChecklist(task.items || []);
+
+    // Render Photos
+    renderTaskPhotos(task.images || []);
+
+    // Reset upload zone
+    cancelPhotoUpload();
+  } catch (err) {
+    console.error('Lỗi mở chi tiết công việc:', err);
+    showToast(err.message || 'Không thể mở chi tiết', 'error');
+  }
+}
+
+// =========================================================================
+// CHECKLIST SUB-ITEMS WORKFLOW (DETAIL MODAL)
+// =========================================================================
+function renderDetailChecklist(items) {
+  const container = document.getElementById('modalDetailItemsContainer');
+  const statsEl = document.getElementById('modalDetailItemStats');
+  const pctEl = document.getElementById('modalDetailProgressPercent');
+  const barEl = document.getElementById('modalDetailProgressBar');
+
+  const total = items.length;
+  const completed = items.filter(i => i.Status === 'COMPLETED').length;
+  const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+  if (statsEl) statsEl.textContent = `${completed}/${total}`;
+  if (pctEl) pctEl.textContent = `${pct}%`;
+  if (barEl) barEl.style.width = `${pct}%`;
+
+  if (!container) return;
+
+  if (total === 0) {
+    container.innerHTML = `
+      <div style="font-size: 0.82rem; color: var(--text-muted); padding: 12px; background: rgba(255,255,255,0.02); border-radius: var(--radius-sm); text-align: center;">
+        Chưa có hạng mục con nào. Bấm <strong>'+ Thêm Hạng Mục'</strong> ở góc phải để tạo checklist công việc chi tiết.
+      </div>
+    `;
+    return;
+  }
+
+  const taskImages = (currentEditingTask && currentEditingTask.images) ? currentEditingTask.images : [];
+
+  container.innerHTML = items.map((item, idx) => {
+    const isDone = item.Status === 'COMPLETED';
+    const hasSample = !!item.SampleImageUrl;
+
+    // Ảnh thực tế của hạng mục này: lấy từ taskImages theo TaskItemID hoặc item.ActualImageUrl
+    const matchedPhoto = taskImages.find(img => img.TaskItemID == item.id) || (item.ActualImageUrl ? { FileUrl: item.ActualImageUrl } : null);
+    const actualImgUrl = matchedPhoto ? matchedPhoto.FileUrl : (item.ActualImageUrl || '');
+    const hasActualPhoto = !!actualImgUrl;
+
+    const sampleUrl = item.SampleImageUrl || '';
+    const guideline = item.StandardGuideline || '';
+
+    return `
+      <div class="checklist-item-card" style="display: flex; flex-direction: column; gap: 7px; padding: 10px 12px; background: ${isDone ? 'rgba(16, 185, 129, 0.05)' : 'rgba(255, 255, 255, 0.02)'}; border: 1px solid ${isDone ? 'rgba(16, 185, 129, 0.25)' : 'var(--border-subtle)'}; border-radius: var(--radius-sm); transition: all 0.2s ease;">
+        
+        <!-- Hàng 1: Checkbox + Tiêu đề hạng mục (toàn bộ chiều ngang) + Nút xóa -->
+        <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; width: 100%;">
+          <label style="display: flex; align-items: flex-start; gap: 10px; flex: 1; min-width: 0; cursor: pointer; margin: 0;">
+            <input type="checkbox" ${isDone ? 'checked' : ''} onchange="toggleItemCompleted(${item.id}, this.checked)" style="width: 20px; height: 20px; accent-color: #10B981; cursor: pointer; flex-shrink: 0; margin-top: 2px;">
+            <span style="font-size: 0.92rem; font-weight: 700; line-height: 1.4; ${isDone ? 'text-decoration: line-through; color: var(--text-muted);' : 'color: #F8FAFC;'} word-break: break-word;">
+              ${escapeHtml(item.ItemTitle)}
+            </span>
+          </label>
+
+          <button type="button" onclick="deleteDetailItem(${item.id})" style="background: none; border: none; color: #EF4444; cursor: pointer; padding: 2px 6px; font-size: 0.95rem; opacity: 0.6; line-height: 1; flex-shrink: 0;" title="Xóa hạng mục" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.6'">✕</button>
+        </div>
+
+        <!-- Hàng 2: Trạng thái hoàn tất, Người thực hiện, Ghi chú & Cụm ảnh SOP / Ảnh thực tế / Nút chụp -->
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-left: 30px; flex-wrap: wrap;">
+          <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap; flex: 1; min-width: 140px;">
+            ${isDone && item.CompletedAt ? `
+              <span class="badge" style="background: rgba(16, 185, 129, 0.15); color: #34D399; font-size: 0.72rem; padding: 2px 8px; border-radius: 4px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; border: 1px solid rgba(16, 185, 129, 0.3);">
+                ✓ ${formatDateTime(item.CompletedAt)}
+              </span>
+            ` : ''}
+            ${item.AssignedTo ? `
+              <span class="badge" style="background: rgba(99, 102, 241, 0.15); color: #A5B4FC; font-size: 0.72rem; padding: 2px 8px; border-radius: 4px; display: inline-flex; align-items: center; gap: 4px;">
+                👤 ${escapeHtml(item.AssignedTo)}
+              </span>
+            ` : ''}
+            ${(item.Note || item.Notes) ? `
+              <span style="font-size: 0.76rem; color: var(--text-muted); line-height: 1.35;">
+                ${escapeHtml(item.Note || item.Notes)}
+              </span>
+            ` : ''}
+          </div>
+
+          <div style="display: flex; align-items: center; gap: 6px; flex-shrink: 0; margin-left: auto;">
+            ${hasSample ? `
+              <div class="item-sop-thumb" style="position: relative; width: 34px; height: 34px; border-radius: 4px; overflow: hidden; border: 1.5px solid #38BDF8; background: #000; cursor: pointer; flex-shrink: 0; box-shadow: 0 0 6px rgba(56,189,248,0.25);" onclick="openSubItemCompareModal(${item.id}, '${escapeHtml(item.ItemTitle)}', '${sampleUrl}', '${escapeHtml(guideline)}', '${actualImgUrl}')" title="Xem ảnh mẫu chuẩn SOP & đối chiếu">
+                <img src="${sampleUrl}" style="width: 100%; height: 100%; object-fit: cover;">
+                <span style="position: absolute; bottom: 0; right: 0; background: #0284C7; color: #fff; font-size: 7px; font-weight: 700; padding: 0 2px; border-top-left-radius: 2px;">SOP</span>
+              </div>
+            ` : ''}
+
+            ${hasActualPhoto ? `
+              <div class="item-actual-thumb" style="position: relative; width: 34px; height: 34px; border-radius: 4px; overflow: hidden; border: 1.5px solid #10B981; background: #000; cursor: pointer; flex-shrink: 0; box-shadow: 0 0 6px rgba(16,185,129,0.25);" onclick="openSubItemCompareModal(${item.id}, '${escapeHtml(item.ItemTitle)}', '${sampleUrl}', '${escapeHtml(guideline)}', '${actualImgUrl}')" title="Xem ảnh thực tế đã chụp & so sánh với SOP">
+                <img src="${actualImgUrl}" style="width: 100%; height: 100%; object-fit: cover;">
+                <span style="position: absolute; bottom: 0; right: 0; background: #059669; color: #fff; font-size: 7px; font-weight: 700; padding: 0 2px; border-top-left-radius: 2px;">ĐÃ CHỤP</span>
+              </div>
+            ` : ''}
+
+            <button type="button" class="btn-secondary" style="padding: 4px 10px; font-size: 0.74rem; display: flex; align-items: center; gap: 4px; background: ${hasActualPhoto ? 'rgba(16, 185, 129, 0.15)' : 'rgba(59, 130, 246, 0.15)'}; border-color: ${hasActualPhoto ? 'rgba(16, 185, 129, 0.4)' : 'rgba(59, 130, 246, 0.4)'}; color: ${hasActualPhoto ? '#34D399' : '#93C5FD'}; cursor: pointer; border-radius: 4px; white-space: nowrap;" onclick="openSubItemCompareModal(${item.id}, '${escapeHtml(item.ItemTitle)}', '${sampleUrl}', '${escapeHtml(guideline)}', '${actualImgUrl}')" title="${hasActualPhoto ? 'Đã có ảnh thực tế. Bấm để so sánh đối chiếu với ảnh mẫu SOP hoặc chụp lại' : 'Bấm để xem ảnh mẫu SOP và mở camera chụp ảnh thực tế'}">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
+              <span>${hasActualPhoto ? 'So sánh' : 'Chụp'}</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+// =========================================================================
+// HỘP KIỂM ĐỐI CHIẾU SOP & MỞ CAMERA CHỤP ẢNH SO SÁNH (CÓ THỂ CHỤP LẠI)
+// =========================================================================
+let currentCompareItemId = null;
+let currentCompareItemTitle = '';
+let currentCompareSampleUrl = '';
+let currentCompareGuideline = '';
+let currentCompareActualUrl = '';
+
+function openSubItemCompareModal(itemId, itemTitle, sampleImageUrl = '', guideline = '', actualImageUrl = '') {
+  currentCompareItemId = itemId;
+  currentCompareItemTitle = itemTitle || '';
+  currentCompareSampleUrl = sampleImageUrl || '';
+  currentCompareGuideline = guideline || '';
+  currentCompareActualUrl = actualImageUrl || '';
+
+  // Tìm ảnh thực tế nếu chưa truyền vào
+  if (!currentCompareActualUrl && currentEditingTask) {
+    if (currentEditingTask.images) {
+      const found = currentEditingTask.images.find(img => img.TaskItemID == itemId);
+      if (found) currentCompareActualUrl = found.FileUrl;
+    }
+    if (!currentCompareActualUrl && currentEditingTask.items) {
+      const foundIt = currentEditingTask.items.find(it => it.id == itemId);
+      if (foundIt && foundIt.ActualImageUrl) currentCompareActualUrl = foundIt.ActualImageUrl;
+    }
+  }
+
+  const modal = document.getElementById('subItemCompareModal');
+  if (!modal) return;
+
+  const idInp = document.getElementById('compareModalItemId');
+  if (idInp) idInp.value = itemId || '';
+  const titleEl = document.getElementById('compareModalItemTitleText');
+  if (titleEl) titleEl.textContent = itemTitle || 'Hạng mục';
+
+  // 1. Cấu hình cột Ảnh Mẫu SOP
+  const sopImg = document.getElementById('compareSOPImg');
+  const sopPlaceholder = document.getElementById('compareSOPPlaceholder');
+  const sopZoomBadge = document.getElementById('compareSOPZoomBadge');
+  const sopGuideBox = document.getElementById('compareSOPGuidelineBox');
+  const sopGuideText = document.getElementById('compareSOPGuidelineText');
+
+  if (currentCompareSampleUrl) {
+    if (sopImg) {
+      sopImg.src = currentCompareSampleUrl;
+      sopImg.style.display = 'block';
+    }
+    if (sopPlaceholder) sopPlaceholder.style.display = 'none';
+    if (sopZoomBadge) sopZoomBadge.style.display = 'block';
+  } else {
+    if (sopImg) {
+      sopImg.src = '';
+      sopImg.style.display = 'none';
+    }
+    if (sopPlaceholder) sopPlaceholder.style.display = 'block';
+    if (sopZoomBadge) sopZoomBadge.style.display = 'none';
+  }
+
+  if (currentCompareGuideline) {
+    if (sopGuideText) sopGuideText.textContent = currentCompareGuideline;
+    if (sopGuideBox) sopGuideBox.style.display = 'block';
+  } else {
+    if (sopGuideBox) sopGuideBox.style.display = 'none';
+  }
+
+  // 2. Cấu hình cột Ảnh Thực Tế
+  updateCompareModalActualPreview(currentCompareActualUrl);
+
+  modal.classList.add('open', 'active');
+}
+
+function updateCompareModalActualPreview(url) {
+  const actualImg = document.getElementById('compareActualImg');
+  const actualPlaceholder = document.getElementById('compareActualPlaceholder');
+  const actualZoomBadge = document.getElementById('compareActualZoomBadge');
+  const actualBadge = document.getElementById('compareActualBadge');
+  const btnCam = document.getElementById('btnCompareOpenCam');
+  const btnCamText = document.getElementById('btnCompareOpenCamText');
+
+  if (url) {
+    if (actualImg) {
+      actualImg.src = url;
+      actualImg.style.display = 'block';
+    }
+    if (actualPlaceholder) actualPlaceholder.style.display = 'none';
+    if (actualZoomBadge) actualZoomBadge.style.display = 'block';
+    if (actualBadge) {
+      actualBadge.textContent = '✓ Đã có ảnh';
+      actualBadge.style.background = 'rgba(16, 185, 129, 0.2)';
+      actualBadge.style.color = '#34D399';
+    }
+    if (btnCamText) btnCamText.textContent = '🔄 Chụp Lại Ảnh Khác';
+    if (btnCam) {
+      btnCam.style.background = '#2563EB';
+    }
+  } else {
+    if (actualImg) {
+      actualImg.src = '';
+      actualImg.style.display = 'none';
+    }
+    if (actualPlaceholder) actualPlaceholder.style.display = 'block';
+    if (actualZoomBadge) actualZoomBadge.style.display = 'none';
+    if (actualBadge) {
+      actualBadge.textContent = 'Chưa chụp';
+      actualBadge.style.background = 'rgba(255, 255, 255, 0.08)';
+      actualBadge.style.color = 'var(--text-muted)';
+    }
+    if (btnCamText) btnCamText.textContent = 'Mở Camera Chụp Ảnh';
+    if (btnCam) {
+      btnCam.style.background = '#10B981';
+    }
+  }
+}
+
+function triggerCompareModalCamera() {
+  const camInp = document.getElementById('compareModalCameraInput');
+  if (camInp) {
+    camInp.value = '';
+    camInp.click();
+  }
+}
+
+async function handleCompareModalPhotoCaptured(e) {
+  const file = e.target.files?.[0];
+  if (!file || !currentEditingTask) return;
+
+  const itemId = currentCompareItemId;
+  const itemTitle = currentCompareItemTitle;
+
+  showToast(`📸 Đang tự động lưu ảnh chụp cho "${itemTitle || 'hạng mục'}"...`, 'info');
+
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('image_type', 'AFTER');
+  formData.append('caption', `Ảnh thực hiện: ${itemTitle || ''}`);
+  if (itemId) {
+    formData.append('task_item_id', itemId);
+  }
+
+  try {
+    const res = await fetch(`/api/internal-tasks/${currentEditingTask.id}/photos`, {
+      method: 'POST',
+      body: formData
+    });
+
+    let data = {};
+    try {
+      data = await res.json();
+    } catch (parseErr) {
+      throw new Error(`Lỗi kết nối máy chủ (Mã lỗi: ${res.status})`);
+    }
+
+    if (!res.ok) throw new Error(data.detail || data.message || 'Lỗi tải ảnh lên');
+
+    // Tự động đánh dấu công việc đang xử lý nếu còn ở trạng thái chờ
+    if (currentEditingTask.Status === 'PENDING' || currentEditingTask.Status === 'HOLD') {
+      try {
+        await fetch(`/api/internal-tasks/${currentEditingTask.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ Status: 'IN_PROGRESS' })
+        });
+        currentEditingTask.Status = 'IN_PROGRESS';
+      } catch (e) {}
+    }
+
+    currentCompareActualUrl = data.file_url;
+    updateCompareModalActualPreview(data.file_url);
+
+    showToast(`✅ Đã lưu ảnh thành công! 2 ảnh đang được hiển thị đối chiếu.`, 'success');
+
+    // Cập nhật lại chi tiết công việc ngầm để cập nhật thumbnail ở dòng checklist
+    if (currentEditingTask && currentEditingTask.id) {
+      const freshRes = await fetch(`/api/internal-tasks/${currentEditingTask.id}`);
+      if (freshRes.ok) {
+        const freshTask = await freshRes.json();
+        currentEditingTask = freshTask;
+        renderDetailChecklist(freshTask.items || []);
+        renderTaskPhotos(freshTask.images || []);
+      }
+    }
+  } catch (err) {
+    console.error('Lỗi tự động lưu ảnh:', err);
+    showToast(`Lỗi lưu ảnh: ${err.message}`, 'error');
+  } finally {
+    e.target.value = '';
+  }
+}
+
+function closeSubItemCompareModal() {
+  const modal = document.getElementById('subItemCompareModal');
+  if (modal) modal.classList.remove('open', 'active');
+  currentCompareItemId = null;
+  currentCompareItemTitle = '';
+  currentCompareActualUrl = '';
+}
+
+function triggerDirectSubItemCamera(itemId, itemTitle) {
+  const item = (currentEditingTask && currentEditingTask.items) ? currentEditingTask.items.find(it => it.id == itemId) : null;
+  openSubItemCompareModal(itemId, itemTitle, item?.SampleImageUrl || '', item?.StandardGuideline || '', item?.ActualImageUrl || '');
+}
+
+async function autoSaveSubItemPhoto(file, itemId, itemTitle) {
+  if (!file || !currentEditingTask) return;
+
+  showToast(`📸 Đang tự động lưu ảnh chụp cho "${itemTitle || 'hạng mục'}"...`, 'info');
+
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('image_type', 'AFTER');
+  formData.append('caption', `Ảnh thực hiện: ${itemTitle || ''}`);
+  if (itemId) {
+    formData.append('task_item_id', itemId);
+  }
+
+  try {
+    const res = await fetch(`/api/internal-tasks/${currentEditingTask.id}/photos`, {
+      method: 'POST',
+      body: formData
+    });
+
+    let data = {};
+    try {
+      data = await res.json();
+    } catch (parseErr) {
+      throw new Error(`Lỗi kết nối máy chủ (Mã lỗi: ${res.status})`);
+    }
+
+    if (!res.ok) throw new Error(data.detail || data.message || 'Lỗi tải ảnh lên');
+
+    // Tự động đánh dấu công việc đang xử lý nếu còn ở trạng thái chờ
+    if (currentEditingTask.Status === 'PENDING' || currentEditingTask.Status === 'HOLD') {
+      try {
+        await fetch(`/api/internal-tasks/${currentEditingTask.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ Status: 'IN_PROGRESS' })
+        });
+        currentEditingTask.Status = 'IN_PROGRESS';
+      } catch (e) {}
+    }
+
+    showToast(`✅ Đã chụp và lưu ảnh cho "${itemTitle || 'hạng mục'}" thành công!`, 'success');
+
+    // Reload task detail để cập nhật ảnh trong thư viện ảnh công việc & trạng thái sub-item
+    await openTaskDetail(currentEditingTask.id);
+  } catch (err) {
+    console.error('Lỗi tự động lưu ảnh:', err);
+    showToast(`Lỗi lưu ảnh: ${err.message}`, 'error');
+  }
+}
+
+async function handleSubitemDirectPhotoCaptured(e) {
+  const file = e.target.files?.[0];
+  if (!file) return;
+
+  const itemId = currentDirectCameraSubItemId;
+  const itemTitle = currentDirectCameraSubItemTitle;
+  try {
+    await autoSaveSubItemPhoto(file, itemId, itemTitle);
+  } finally {
+    currentDirectCameraSubItemId = null;
+    currentDirectCameraSubItemTitle = '';
+    e.target.value = '';
+  }
+}
+
+async function toggleItemCompleted(itemId, isCompleted) {
+  try {
+    const newStatus = isCompleted ? 'COMPLETED' : 'PENDING';
+    const res = await fetch(`/api/internal-tasks/items/${itemId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ Status: newStatus })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'Lỗi cập nhật trạng thái hạng mục');
+
+    // Tự động chuyển trạng thái công việc sang 'IN_PROGRESS' (Đang thực hiện) nếu đang là PENDING hoặc HOLD
+    if (currentEditingTask && (currentEditingTask.Status === 'PENDING' || currentEditingTask.Status === 'HOLD')) {
+      try {
+        await fetch(`/api/internal-tasks/${currentEditingTask.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ Status: 'IN_PROGRESS' })
+        });
+        currentEditingTask.Status = 'IN_PROGRESS';
+      } catch (autoErr) {
+        console.warn('Lỗi tự chuyển trạng thái sang Đang thực hiện:', autoErr);
+      }
+    }
+
+    showToast(isCompleted ? 'Đã hoàn thành hạng mục!' : 'Đã chuyển hạng mục về chưa hoàn thành', 'info');
+    if (currentEditingTask) {
+      await openTaskDetail(currentEditingTask.id);
+    }
+    await loadTasks();
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+function toggleDetailAddRow() {
+  const box = document.getElementById('detailQuickAddBox');
+  if (!box) return;
+  if (box.style.display === 'none' || !box.style.display) {
+    box.style.display = 'block';
+    const titleInput = document.getElementById('detailNewItemTitle');
+    if (titleInput) titleInput.focus();
+  } else {
+    box.style.display = 'none';
+  }
+}
+
+async function submitAddDetailItem() {
+  if (!currentEditingTask) return;
+  const titleInput = document.getElementById('detailNewItemTitle');
+  const assigneeSelect = document.getElementById('detailNewItemAssignee');
+  const noteInput = document.getElementById('detailNewItemNote');
+
+  const title = titleInput?.value.trim();
+  if (!title) {
+    showToast('Vui lòng nhập tên hạng mục công việc', 'warning');
+    titleInput?.focus();
+    return;
+  }
+
+  const payload = {
+    ItemTitle: title,
+    AssignedTo: assigneeSelect?.value.trim() || '',
+    Notes: noteInput?.value.trim() || ''
+  };
+
+  try {
+    const res = await fetch(`/api/internal-tasks/${currentEditingTask.id}/items`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'Lỗi thêm hạng mục');
+
+    // Tự động chuyển trạng thái công việc sang 'IN_PROGRESS' (Đang thực hiện) nếu đang là PENDING hoặc HOLD
+    if (currentEditingTask && (currentEditingTask.Status === 'PENDING' || currentEditingTask.Status === 'HOLD')) {
+      try {
+        await fetch(`/api/internal-tasks/${currentEditingTask.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ Status: 'IN_PROGRESS' })
+        });
+        currentEditingTask.Status = 'IN_PROGRESS';
+      } catch (autoErr) {
+        console.warn('Lỗi tự chuyển trạng thái sang Đang thực hiện:', autoErr);
+      }
+    }
+
+    showToast('Đã thêm hạng mục mới!', 'success');
+    titleInput.value = '';
+    if (noteInput) noteInput.value = '';
+    toggleDetailAddRow();
+
+    await openTaskDetail(currentEditingTask.id);
+    await loadTasks();
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+async function deleteDetailItem(itemId) {
+  if (!confirm('Bạn có chắc muốn xóa hạng mục này?')) return;
+  try {
+    const res = await fetch(`/api/internal-tasks/items/${itemId}`, {
+      method: 'DELETE'
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'Lỗi khi xóa hạng mục');
+
+    showToast('Đã xóa hạng mục', 'info');
+    if (currentEditingTask) {
+      await openTaskDetail(currentEditingTask.id);
+    }
+    await loadTasks();
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+function closeTaskDetailModal() {
+  const modal = document.getElementById('taskDetailModal');
+  if (modal) modal.classList.remove('open', 'active');
+  document.body.classList.remove('mobile-view-detail');
+  const taskId = currentEditingTask?.id;
+  currentEditingTask = null;
+  cancelPhotoUpload();
+  if (taskId) {
+    const card = document.querySelector(`.task-card[data-task-id="${taskId}"]`) || document.querySelector(`tr[data-task-id="${taskId}"]`);
+    if (card) {
+      card.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+  }
+}
+
+async function spawnNextCycleFromDetail() {
+  if (!currentEditingTask || !currentEditingTask.RecurringTemplateID) return;
+  await spawnTaskFromTemplate(currentEditingTask.RecurringTemplateID);
+  await openTaskDetail(currentEditingTask.id);
+}
+
+async function navigateToRecurringTemplateFromModal() {
+  const tplId = currentEditingTask?.RecurringTemplateID;
+  if (!tplId) return;
+  closeTaskDetailModal();
+  switchTaskTabMode('recurring');
+  await loadRecurringData();
+  selectRecurringTemplate(tplId);
+  setTimeout(() => {
+    const card = document.querySelector(`#recurringMasterList .master-card[data-tpl-id="${tplId}"]`);
+    if (card) {
+      card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }, 150);
+}
+
+function updateStatusDropdownStyle(selectEl, status) {
+  if (!selectEl) return;
+  const s = (status || 'PENDING').toUpperCase();
+  if (s === 'PENDING') {
+    selectEl.style.borderColor = 'rgba(245, 158, 11, 0.6)';
+    selectEl.style.color = '#FBBF24';
+    selectEl.style.backgroundColor = 'rgba(245, 158, 11, 0.12)';
+  } else if (s === 'IN_PROGRESS') {
+    selectEl.style.borderColor = 'rgba(59, 130, 246, 0.6)';
+    selectEl.style.color = '#93C5FD';
+    selectEl.style.backgroundColor = 'rgba(59, 130, 246, 0.15)';
+  } else if (s === 'HOLD') {
+    selectEl.style.borderColor = 'rgba(107, 114, 128, 0.6)';
+    selectEl.style.color = '#D1D5DB';
+    selectEl.style.backgroundColor = 'rgba(107, 114, 128, 0.15)';
+  } else if (s === 'COMPLETED') {
+    selectEl.style.borderColor = 'rgba(16, 185, 129, 0.6)';
+    selectEl.style.color = '#34D399';
+    selectEl.style.backgroundColor = 'rgba(16, 185, 129, 0.15)';
+  } else {
+    selectEl.style.borderColor = 'rgba(99, 102, 241, 0.5)';
+    selectEl.style.color = 'var(--text-primary)';
+    selectEl.style.backgroundColor = 'rgba(17, 24, 39, 0.9)';
+  }
+}
+
+async function quickCardAction(taskId, newStatus) {
+  try {
+    const res = await fetch(`/api/internal-tasks/${taskId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ Status: newStatus })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'Không thể cập nhật trạng thái');
+
+    showToast(data.message || `Đã chuyển trạng thái sang: ${newStatus}`, 'success');
+    await loadTasks();
+    await loadRecurringTemplates();
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+async function quickUpdateStatus(newStatus) {
+  if (!currentEditingTask) return;
+  try {
+    const res = await fetch(`/api/internal-tasks/${currentEditingTask.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ Status: newStatus })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'Không thể cập nhật trạng thái');
+
+    currentEditingTask.Status = newStatus;
+    const statusSelect = document.getElementById('modalDetailStatusSelect');
+    if (statusSelect) {
+      statusSelect.value = newStatus;
+      updateStatusDropdownStyle(statusSelect, newStatus);
+    }
+
+    const statusLabels = {
+      PENDING: { text: 'Chờ Xử Lý', class: 'badge-status-pending' },
+      IN_PROGRESS: { text: 'Đang Thực Hiện', class: 'badge-status-inprogress' },
+      HOLD: { text: 'Tạm Hoãn', class: 'badge-status-hold' },
+      COMPLETED: { text: 'Hoàn Tất Nghiệm Thu', class: 'badge-status-completed' }
+    };
+    const sInfo = statusLabels[newStatus] || { text: newStatus, class: 'badge-status-pending' };
+    const badgeEl = document.getElementById('modalDetailStatusBadge');
+    if (badgeEl) badgeEl.innerHTML = `<span class="badge ${sInfo.class}">${sInfo.text}</span>`;
+
+    showToast(data.message || `Đã chuyển trạng thái: ${sInfo.text}`, 'success');
+    await openTaskDetail(currentEditingTask.id);
+    await loadTasks();
+    await loadRecurringTemplates();
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+async function submitUpdateTaskDetail(e) {
+  e.preventDefault();
+  if (!currentEditingTask) return;
+
+  const statusVal = document.getElementById('modalDetailStatusSelect')?.value || currentEditingTask.Status;
+  const payload = {
+    Status: statusVal,
+    AssignedTo: document.getElementById('modalDetailAssignedTo').value.trim(),
+    DowntimeMinutes: document.getElementById('modalDetailDowntime').value ? Number(document.getElementById('modalDetailDowntime').value) : 0,
+    Solution: document.getElementById('modalDetailSolution').value.trim()
+  };
+
+  try {
+    const res = await fetch(`/api/internal-tasks/${currentEditingTask.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'Không thể lưu cập nhật xử lý');
+
+    showToast(data.message || 'Đã lưu thông tin xử lý công việc thành công!', 'success');
+    await openTaskDetail(currentEditingTask.id);
+    await loadTasks();
+    await loadRecurringTemplates();
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+// =========================================================================
+// PHOTOS MANAGEMENT & NAS STORAGE
+// =========================================================================
+function renderTaskPhotos(images) {
+  const grid = document.getElementById('modalPhotosGrid');
+  const countEl = document.getElementById('modalPhotoCount');
+  if (countEl) countEl.textContent = `${images.length} ảnh`;
+  if (!grid) return;
+
+  if (images.length === 0) {
+    grid.innerHTML = '<div style="color: var(--text-muted); font-size: 0.82rem; grid-column: 1 / -1;">Chưa có hình ảnh nào được đính kèm.</div>';
+    return;
+  }
+
+  grid.innerHTML = images.map(img => `
+    <div style="position: relative; border-radius: var(--radius-sm); overflow: hidden; border: 1px solid var(--border-subtle); background: #000; cursor: pointer;" onclick="openLightbox('${img.FileUrl}', '${escapeHtml(img.Caption || '')}')">
+      <img src="${img.FileUrl}" style="width: 100%; height: 100px; object-fit: cover; display: block;">
+      <div style="position: absolute; top: 4px; left: 4px; background: rgba(0,0,0,0.7); font-size: 0.68rem; font-weight: 700; color: ${img.ImageType === 'BEFORE' ? '#F87171' : '#34D399'}; padding: 2px 6px; border-radius: 3px;">
+        ${img.ImageType === 'BEFORE' ? 'TRƯỚC' : 'SAU'}
+      </div>
+      ${img.Caption ? `<div style="position: absolute; bottom: 0; left: 0; right: 0; background: rgba(0,0,0,0.75); font-size: 0.68rem; color: #FFF; padding: 3px 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(img.Caption)}</div>` : ''}
+    </div>
+  `).join('');
+}
+
+function triggerPhotoUpload() {
+  document.getElementById('taskPhotoFileInput')?.click();
+}
+
+function handlePhotoSelected(e) {
+  const file = e.target.files?.[0];
+  if (!file) return;
+
+  selectedPhotoFile = file;
+  const reader = new FileReader();
+  reader.onload = (evt) => {
+    const previewBox = document.getElementById('photoUploadPreviewBox');
+    const thumb = document.getElementById('photoUploadThumb');
+    if (previewBox && thumb) {
+      thumb.src = evt.target.result;
+      previewBox.style.display = 'block';
+    }
+  };
+  reader.readAsDataURL(file);
+}
+
+function cancelPhotoUpload() {
+  selectedPhotoFile = null;
+  const fileInput = document.getElementById('taskPhotoFileInput');
+  if (fileInput) fileInput.value = '';
+  const previewBox = document.getElementById('photoUploadPreviewBox');
+  if (previewBox) previewBox.style.display = 'none';
+  const captionInput = document.getElementById('photoUploadCaption');
+  if (captionInput) captionInput.value = '';
+}
+
+async function submitUploadPhoto() {
+  if (!selectedPhotoFile || !currentEditingTask) {
+    showToast('Chưa chọn tệp ảnh để tải lên', 'warning');
+    return;
+  }
+
+  const photoType = document.querySelector('input[name="uploadPhotoType"]:checked')?.value || 'BEFORE';
+  const caption = document.getElementById('photoUploadCaption')?.value.trim() || '';
+
+  const formData = new FormData();
+  formData.append('file', selectedPhotoFile);
+  formData.append('image_type', photoType);
+  formData.append('caption', caption);
+
+  showToast('Đang tải ảnh và đồng bộ...', 'info');
+
+  try {
+    const res = await fetch(`/api/internal-tasks/${currentEditingTask.id}/photos`, {
+      method: 'POST',
+      body: formData
+    });
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'Lỗi tải ảnh lên máy chủ');
+
+    showToast('Tải ảnh hiện trường thành công!', 'success');
+    cancelPhotoUpload();
+    await openTaskDetail(currentEditingTask.id);
+    await loadTasks();
+  } catch (err) {
+    console.error('Lỗi tải ảnh:', err);
+    showToast(err.message || 'Không thể tải ảnh lên', 'error');
+  }
+}
+
+// =========================================================================
+// LIGHTBOX MODAL
+// =========================================================================
+function openLightbox(url, caption) {
+  const modal = document.getElementById('lightboxModal');
+  const img = document.getElementById('lightboxImg');
+  const cap = document.getElementById('lightboxCaption');
+  if (!modal || !img) return;
+
+  img.src = url;
+  if (cap) cap.textContent = caption || '';
+  modal.classList.add('open', 'active');
+}
+
+function closeLightbox() {
+  const modal = document.getElementById('lightboxModal');
+  if (modal) modal.classList.remove('open', 'active');
+}
+
+// =========================================================================
+// UTILITIES: TOAST NOTIFICATIONS & FORMATTERS
+// =========================================================================
+function showToast(message, type = 'info') {
+  const container = document.getElementById('toastContainer');
+  if (!container) return;
+
+  const toast = document.createElement('div');
+  toast.className = `toast-message ${type}`;
+  toast.style.cssText = `
+    display: flex; align-items: center; gap: 10px;
+    padding: 12px 18px; margin-bottom: 8px; border-radius: var(--radius-sm);
+    background: #1F2937; color: #FFF; font-size: 0.88rem; font-weight: 600;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.5); border: 1px solid var(--border-subtle);
+    animation: fadeIn 0.2s ease;
+  `;
+
+  if (type === 'success') {
+    toast.style.borderColor = '#10B981';
+    toast.style.background = '#064E3B';
+  } else if (type === 'error') {
+    toast.style.borderColor = '#EF4444';
+    toast.style.background = '#7F1D1D';
+  } else if (type === 'warning') {
+    toast.style.borderColor = '#F59E0B';
+    toast.style.background = '#78350F';
+  }
+
+  toast.textContent = message;
+  container.appendChild(toast);
+
+  setTimeout(() => {
+    toast.style.opacity = '0';
+    toast.style.transition = 'opacity 0.3s ease';
+    setTimeout(() => toast.remove(), 300);
+  }, 4500);
+}
+
+function formatDateTime(dtStr) {
+  if (!dtStr) return '-';
+  try {
+    const parts = dtStr.split(' ');
+    const datePart = parts[0];
+    const timePart = parts[1] || '';
+    const [y, m, d] = datePart.split('-');
+    if (!y || !m || !d) return dtStr;
+    return `${d}/${m}/${y}${timePart ? ' ' + timePart.substring(0, 5) : ''}`;
+  } catch (e) {
+    return dtStr;
+  }
+}
+
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+function escapeRegex(str) {
+  if (!str) return '';
+  return String(str).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function highlightText(text, query) {
+  if (!text) return '';
+  if (!query) return escapeHtml(text);
+  const regex = new RegExp(`(${escapeRegex(query)})`, 'gi');
+  const escaped = escapeHtml(text);
+  return escaped.replace(regex, '<mark class="search-highlight">$1</mark>');
+}
+
+function openItemSampleModalById(itemId) {
+  const item = (allRecurringItems || []).find(i => i.id == itemId);
+  const row = document.querySelector(`tr[data-item-id="${itemId}"]`);
+  if (item) {
+    openItemSampleModal(item.id, item.ItemTitle, item.SampleImageUrl || '', item.StandardGuideline || '', row, 'recurring');
+  } else {
+    openItemSampleModal(itemId, '', '', '', row, 'recurring');
+  }
+}
+
+// =========================================================================
+// SUB-ITEM SOP SAMPLE PHOTO & PROOF HISTORY WORKFLOW
+// =========================================================================
+let currentSampleModalItemId = null;
+let currentSampleModalItemTitle = '';
+let currentSampleModalUrl = '';
+let currentSampleModalTriggerRow = null;
+let itemSampleSelectedFile = null;
+let currentSampleModalMode = 'recurring';
+
+function updateTriggerRowSample(sampleUrl) {
+  if (!currentSampleModalTriggerRow) return;
+  const hiddenInp = currentSampleModalTriggerRow.querySelector('.tpl-item-sample-url, .new-item-sample-url');
+  if (hiddenInp) hiddenInp.value = sampleUrl || '';
+
+  const thumbBox = currentSampleModalTriggerRow.querySelector('.item-sample-thumb-box');
+  const btn = currentSampleModalTriggerRow.querySelector('.btn-item-sample-trigger');
+
+  if (sampleUrl) {
+    if (thumbBox) {
+      thumbBox.innerHTML = `<img src="${sampleUrl}" style="width: 100%; height: 100%; object-fit: cover;">`;
+      thumbBox.style.display = 'block';
+      thumbBox.onclick = () => openLightbox(sampleUrl, 'Ảnh Mẫu SOP');
+    }
+    if (btn) {
+      btn.style.color = '#38BDF8';
+      btn.innerHTML = '📷 Mẫu';
+    }
+  } else {
+    if (thumbBox) {
+      thumbBox.innerHTML = '';
+      thumbBox.style.display = 'none';
+    }
+    if (btn) {
+      btn.style.color = 'var(--text-muted)';
+      btn.innerHTML = '📷 + Mẫu';
+    }
+  }
+}
+
+async function openItemSampleModal(itemId, itemTitle, currentSampleUrl = '', guideline = '', triggerEl = null, explicitMode = null) {
+  const modal = document.getElementById('itemSampleModal');
+  if (!modal) return;
+
+  currentSampleModalItemId = itemId;
+  currentSampleModalItemTitle = itemTitle || '';
+  currentSampleModalUrl = currentSampleUrl || '';
+  currentSampleModalTriggerRow = triggerEl || null;
+  cancelItemSampleUpload();
+
+  const isRecurringMode = (explicitMode === 'recurring') || 
+    (currentTabMode === 'recurring' && !currentEditingTask) ||
+    (!currentEditingTask && (allRecurringItems || []).some(i => i.id == itemId));
+
+  currentSampleModalMode = isRecurringMode ? 'recurring' : 'task';
+
+  const idInp = document.getElementById('itemSampleItemId');
+  if (idInp) idInp.value = itemId || '';
+  const titleEl = document.getElementById('itemSampleItemTitleText');
+  if (titleEl) titleEl.textContent = itemTitle || 'Hạng mục con';
+
+  updateItemSamplePreview(currentSampleUrl, guideline);
+
+  const modalTitle = document.getElementById('itemSampleModalTitle');
+  const modalSub = document.getElementById('itemSampleModalSub');
+  const actionTitle = document.getElementById('itemSampleActionTitle');
+  const btnCamera = document.getElementById('btnLabelCameraSample');
+  const btnFile = document.getElementById('btnLabelFileSample');
+  const historySection = document.getElementById('itemSampleProofHistorySection');
+  const btnSaveSOP = document.getElementById('btnUploadItemSampleDirect');
+  const btnDelSample = document.getElementById('btnDeleteItemSample');
+
+  if (isRecurringMode) {
+    // Mode: Recurring Templates SOP Management
+    if (modalTitle) modalTitle.innerHTML = `<span>★</span> Ảnh Mẫu Chuẩn SOP: <span id="itemSampleItemTitleText" style="color: #60A5FA;">${escapeHtml(itemTitle || '')}</span>`;
+    if (modalSub) modalSub.textContent = 'Thiết lập ảnh mẫu quy chuẩn SOP & xem kho ảnh thực tế do kỹ thuật viên đã chụp';
+    if (actionTitle) actionTitle.textContent = 'Cập Nhật / Tải Ảnh Mẫu Chuẩn SOP Mới';
+    if (btnCamera) btnCamera.style.display = 'inline-flex';
+    if (btnFile) btnFile.style.display = 'inline-flex';
+    if (btnSaveSOP) btnSaveSOP.style.display = 'inline-block';
+    if (historySection) historySection.style.display = 'block';
+    if (btnDelSample && currentSampleUrl) btnDelSample.style.display = 'inline-block';
+
+    modal.classList.add('open', 'active');
+    await reloadItemProofImages();
+  } else {
+    // Mode: Work Order / Task Sub-Item Camera Capture
+    // Không lưu ảnh thực tế cho các hạng mục con, bỏ nút lưu ảnh, tự lưu ảnh khi chụp xong, bỏ nút đặt làm ảnh SOP. Bỏ nút chọn ảnh từ thư viện. Không cần hiện danh sách ảnh đã chụp trong mục này.
+    if (modalTitle) modalTitle.innerHTML = `<span>📸</span> Chụp Ảnh Hạng Mục: <span id="itemSampleItemTitleText" style="color: #60A5FA;">${escapeHtml(itemTitle || '')}</span>`;
+    if (modalSub) modalSub.textContent = 'Chụp ảnh bằng camera (ảnh sẽ tự động lưu ngay sau khi chụp xong)';
+    if (actionTitle) actionTitle.textContent = 'Chụp Ảnh Thực Tế Bằng Camera';
+    if (btnCamera) btnCamera.style.display = 'inline-flex';
+    if (btnFile) btnFile.style.display = 'none'; // Bỏ nút chọn từ thư viện
+    if (btnSaveSOP) btnSaveSOP.style.display = 'none'; // Bỏ nút đặt làm ảnh SOP
+    if (historySection) historySection.style.display = 'none'; // Bỏ danh sách ảnh đã chụp
+    if (btnDelSample) btnDelSample.style.display = 'none';
+
+    modal.classList.add('open', 'active');
+  }
+}
+
+function updateItemSamplePreview(sampleUrl, guideline = '') {
+  const img = document.getElementById('itemSampleCurrentImg');
+  const thumbWrap = document.getElementById('itemSampleCurrentThumbWrapper');
+  const noSample = document.getElementById('itemSampleNoSamplePlaceholder');
+  const btnDel = document.getElementById('btnDeleteItemSample');
+  const guideBox = document.getElementById('itemSampleGuidelineBox');
+  const guideText = document.getElementById('itemSampleGuidelineText');
+
+  if (sampleUrl) {
+    if (img) img.src = sampleUrl;
+    if (thumbWrap) thumbWrap.style.display = 'block';
+    if (noSample) noSample.style.display = 'none';
+    if (btnDel) btnDel.style.display = 'inline-block';
+    if (guideline) {
+      if (guideText) guideText.textContent = guideline;
+      if (guideBox) guideBox.style.display = 'block';
+    } else {
+      if (guideBox) guideBox.style.display = 'none';
+    }
+  } else {
+    if (img) img.src = '';
+    if (thumbWrap) thumbWrap.style.display = 'none';
+    if (noSample) noSample.style.display = 'flex';
+    if (btnDel) btnDel.style.display = 'none';
+    if (guideBox) guideBox.style.display = 'none';
+  }
+}
+
+function closeItemSampleModal() {
+  const modal = document.getElementById('itemSampleModal');
+  if (modal) modal.classList.remove('open', 'active');
+  currentSampleModalItemId = null;
+  currentSampleModalTriggerRow = null;
+  itemSampleSelectedFile = null;
+}
+
+async function reloadItemProofImages() {
+  const container = document.getElementById('itemProofGridContainer');
+  if (!container) return;
+
+  if (!currentSampleModalItemId || currentSampleModalItemId === 0) {
+    container.innerHTML = `
+      <div style="grid-column: 1 / -1; text-align: center; color: var(--text-muted); padding: 26px; background: rgba(0,0,0,0.2); border-radius: 8px;">
+        <div style="font-size: 32px; margin-bottom: 6px;">💡</div>
+        <div style="font-size: 14px; font-weight: 600; color: #E2E8F0; margin-bottom: 4px;">Hạng mục này chưa được lưu vào hệ thống</div>
+        <div style="font-size: 12px; max-width: 480px; margin: 0 auto; color: var(--text-muted);">
+          Vui lòng bấm <strong>"Lưu"</strong> hoặc <strong>"Tạo Công Việc"</strong> để lưu hạng mục vào hệ thống. Sau đó bạn có thể chọn ảnh từ kho ảnh thực tế KTV đã chụp hoặc tải ảnh mẫu chuẩn SOP bất cứ lúc nào!
+        </div>
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = `
+    <div style="grid-column: 1 / -1; text-align: center; color: var(--text-muted); padding: 26px;">
+      <div class="spinner" style="margin: 0 auto 10px;"></div>
+      Đang tải ảnh thực tế kỹ thuật viên đã chụp...
+    </div>
+  `;
+
+  try {
+    const res = await fetch(`/api/internal-tasks/items/${currentSampleModalItemId}/proof-images`);
+    if (!res.ok) throw new Error('Không thể tải ảnh thực tế');
+    const data = await res.json();
+    const images = data.images || [];
+
+    if (data.current_sample_url) {
+      currentSampleModalUrl = data.current_sample_url;
+      updateItemSamplePreview(data.current_sample_url, data.standard_guideline);
+    }
+
+    if (images.length === 0) {
+      container.innerHTML = `
+        <div style="grid-column: 1 / -1; text-align: center; padding: 28px; background: rgba(0,0,0,0.2); border-radius: 8px;">
+          <div style="font-size: 32px; margin-bottom: 6px;">📷</div>
+          <div style="font-size: 14px; font-weight: 600; color: #E2E8F0;">Chưa có ảnh thực tế nào chụp cho hạng mục này</div>
+          <div style="font-size: 12px; color: var(--text-muted); margin-top: 4px; max-width: 480px; margin-left: auto; margin-right: auto;">
+            Khi nhân viên thực hiện công việc và chụp ảnh hiện trường, hình ảnh sẽ tự động xuất hiện tại đây để bạn chọn làm mẫu chuẩn SOP.
+          </div>
+        </div>
+      `;
+      return;
+    }
+
+    container.innerHTML = images.map(img => {
+      const isCurrentSample = (currentSampleModalUrl && currentSampleModalUrl === img.FileUrl);
+      const typeLabel = img.ImageType === 'AFTER' ? 'Sau hoàn thành' : 'Trước xử lý';
+
+      return `
+        <div class="proof-photo-card ${isCurrentSample ? 'is-current-sample' : ''}">
+          <div class="proof-photo-preview" onclick="openLightbox('${img.FileUrl}', '${escapeHtml(currentSampleModalItemTitle)} - Chụp bởi ${escapeHtml(img.UploadedBy || '')} ngày ${img.UploadedAt}')">
+            <img src="${img.FileUrl}" alt="Ảnh thực tế" onerror="this.onerror=null;this.src='/static/placeholder-camera.svg';">
+            <span class="proof-zoom-hint">🔍 Phóng to</span>
+            ${isCurrentSample ? '<span class="current-sample-tag">★ Đang là ảnh mẫu SOP</span>' : ''}
+          </div>
+
+          <div class="proof-photo-details">
+            <div class="proof-meta-row">
+              <span class="proof-meta-item">
+                📅 <strong>${img.UploadedAt || '---'}</strong>
+              </span>
+            </div>
+
+            <div class="proof-meta-row">
+              <span class="proof-meta-item">
+                👤 KTV: <strong>${escapeHtml(img.UploadedBy || 'Kỹ thuật viên')}</strong>
+              </span>
+            </div>
+
+            ${img.SourceTitle ? `
+              <div class="proof-meta-row">
+                <span class="proof-meta-item" style="font-size: 0.72rem; color: #93C5FD;">
+                  📌 ${escapeHtml(img.SourceTitle)}
+                </span>
+              </div>
+            ` : ''}
+
+            <div class="proof-type-badge">${typeLabel}</div>
+            ${img.Caption ? `<div class="proof-caption">"${escapeHtml(img.Caption)}"</div>` : ''}
+
+            <div class="proof-card-actions">
+              <button type="button" class="btn-set-sample" onclick="setItemSampleFromPhoto(${currentSampleModalItemId}, ${img.id}, '${img.Source || 'internal'}', '${escapeHtml(img.UploadedBy || '')}', '${img.UploadedAt || ''}', '${img.FileUrl}')">
+                <span>⭐ Đặt Làm Mẫu SOP</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+  } catch (err) {
+    container.innerHTML = `
+      <div style="grid-column: 1 / -1; text-align: center; color: #EF4444; padding: 24px;">
+        Lỗi tải ảnh: ${err.message}
+      </div>
+    `;
+  }
+}
+
+async function setItemSampleFromPhoto(itemId, imageId, source, uploader, uploadDate, fileUrl) {
+  if (!confirm(`Bạn có chắc muốn chọn ảnh chụp ngày ${uploadDate} của KTV ${uploader} làm Ảnh Mẫu Chuẩn SOP cho hạng mục này?`)) return;
+
+  try {
+    const payload = {
+      image_id: imageId,
+      image_source: source,
+      file_url: fileUrl
+    };
+
+    const res = await fetch(`/api/internal-tasks/items/${itemId}/set-sample-from-image`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'Lỗi thiết lập ảnh mẫu');
+
+    showToast(data.message || 'Đã đặt ảnh thực tế làm ảnh mẫu chuẩn SOP thành công!', 'success');
+    currentSampleModalUrl = data.sample_image_url;
+    updateItemSamplePreview(data.sample_image_url, data.guideline);
+    updateTriggerRowSample(data.sample_image_url);
+    await reloadItemProofImages();
+
+    if (currentEditingTask) {
+      await openTaskDetail(currentEditingTask.id);
+    }
+    if (typeof loadRecurringData === 'function' && currentTabMode === 'recurring') {
+      await loadRecurringData();
+    }
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+async function handleItemSampleFileSelected(e) {
+  const file = e.target.files?.[0];
+  if (!file) return;
+
+  const isRecurringMode = (currentSampleModalMode === 'recurring');
+
+  if (!isRecurringMode && currentEditingTask) {
+    // Chế độ thực hiện công việc: Tự động lưu ảnh ngay khi chụp xong, bỏ nút lưu ảnh, đóng modal ngay
+    const itemId = currentSampleModalItemId;
+    const itemTitle = currentSampleModalItemTitle;
+    closeItemSampleModal();
+    await autoSaveSubItemPhoto(file, itemId, itemTitle);
+    return;
+  }
+
+  // Chế độ cấu hình công việc định kỳ: Chọn ảnh mẫu và hiển thị xem trước để đặt làm mẫu SOP
+  itemSampleSelectedFile = file;
+  const nameDisplay = document.getElementById('itemSampleFileNameDisplay');
+  if (nameDisplay) nameDisplay.textContent = file.name;
+
+  const previewBox = document.getElementById('itemSampleUploadPreviewBox');
+  const thumb = document.getElementById('itemSampleUploadThumb');
+  if (previewBox && thumb) {
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      thumb.src = evt.target.result;
+      previewBox.style.display = 'block';
+    };
+    reader.readAsDataURL(file);
+  }
+}
+
+function cancelItemSampleUpload() {
+  itemSampleSelectedFile = null;
+  const camInp = document.getElementById('itemSampleCameraInput');
+  if (camInp) camInp.value = '';
+  const fileInp = document.getElementById('itemSampleFileInput');
+  if (fileInp) fileInp.value = '';
+  const nameDisplay = document.getElementById('itemSampleFileNameDisplay');
+  if (nameDisplay) nameDisplay.textContent = 'Chưa chọn ảnh nào';
+  const previewBox = document.getElementById('itemSampleUploadPreviewBox');
+  if (previewBox) previewBox.style.display = 'none';
+  const thumb = document.getElementById('itemSampleUploadThumb');
+  if (thumb) thumb.src = '';
+}
+
+async function submitUploadItemProofDirect() {
+  if (!itemSampleSelectedFile || !currentEditingTask) {
+    showToast('Chưa chọn tệp ảnh để tải lên', 'warning');
+    return;
+  }
+
+  const file = itemSampleSelectedFile;
+  const itemId = currentSampleModalItemId;
+  const itemTitle = currentSampleModalItemTitle;
+  cancelItemSampleUpload();
+  closeItemSampleModal();
+  await autoSaveSubItemPhoto(file, itemId, itemTitle);
+}
+
+async function submitUploadItemSampleDirect() {
+  if (!itemSampleSelectedFile || !currentSampleModalItemId) {
+    showToast('Chưa chọn tệp ảnh để tải lên', 'warning');
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append('file', itemSampleSelectedFile);
+
+  showToast('Đang tải ảnh mẫu SOP...', 'info');
+
+  try {
+    const res = await fetch(`/api/internal-tasks/items/${currentSampleModalItemId}/sample-image`, {
+      method: 'POST',
+      body: formData
+    });
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'Lỗi tải ảnh mẫu lên máy chủ');
+
+    showToast('Đã lưu ảnh mẫu SOP thành công!', 'success');
+    currentSampleModalUrl = data.sample_image_url;
+    updateItemSamplePreview(data.sample_image_url);
+    updateTriggerRowSample(data.sample_image_url);
+
+    cancelItemSampleUpload();
+    await reloadItemProofImages();
+
+    if (currentEditingTask) {
+      await openTaskDetail(currentEditingTask.id);
+    }
+    if (typeof loadRecurringData === 'function' && currentTabMode === 'recurring') {
+      await loadRecurringData();
+    }
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+async function deleteCurrentItemSample() {
+  if (!currentSampleModalItemId) return;
+  if (!confirm('Bạn có chắc muốn xóa ảnh mẫu SOP của hạng mục này?')) return;
+
+  try {
+    const res = await fetch(`/api/internal-tasks/items/${currentSampleModalItemId}/sample-image`, {
+      method: 'DELETE'
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'Lỗi xóa ảnh mẫu');
+
+    showToast('Đã xóa ảnh mẫu SOP của hạng mục.', 'info');
+    currentSampleModalUrl = '';
+    updateItemSamplePreview('');
+    updateTriggerRowSample('');
+    await reloadItemProofImages();
+
+    if (currentEditingTask) {
+      await openTaskDetail(currentEditingTask.id);
+    }
+    if (typeof loadRecurringData === 'function' && currentTabMode === 'recurring') {
+      await loadRecurringData();
+    }
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+// =========================================================================
+// EXPLICIT WINDOW BINDINGS (Guarantees onclick handlers find functions)
+// =========================================================================
+window.openCreateTaskModal = openCreateTaskModal;
+window.closeCreateTaskModal = closeCreateTaskModal;
+window.submitCreateTask = submitCreateTask;
+window.openRecurringTemplateModal = openRecurringTemplateModal;
+window.openEditRecurringTemplateModal = openEditRecurringTemplateModal;
+window.closeRecurringTemplateModal = closeRecurringTemplateModal;
+window.submitSaveRecurringTemplate = submitSaveRecurringTemplate;
+window.openTaskDetail = openTaskDetail;
+window.closeTaskDetailModal = closeTaskDetailModal;
+window.submitUpdateTaskDetail = submitUpdateTaskDetail;
+window.switchTaskTabMode = switchTaskTabMode;
+window.selectNewTaskCycleType = selectNewTaskCycleType;
+window.selectTplCycleType = selectTplCycleType;
+window.setNewTaskInterval = setNewTaskInterval;
+window.setNewTaskMonthlyDays = setNewTaskMonthlyDays;
+window.setTplInterval = setTplInterval;
+window.setTplMonthlyDays = setTplMonthlyDays;
+window.toggleNewTaskRecurringFields = toggleNewTaskRecurringFields;
+window.quickCardAction = quickCardAction;
+window.quickUpdateStatus = quickUpdateStatus;
+window.spawnTaskFromTemplate = spawnTaskFromTemplate;
+window.toggleTemplateActive = toggleTemplateActive;
+window.deleteRecurringTemplate = deleteRecurringTemplate;
+window.spawnNextCycleFromDetail = spawnNextCycleFromDetail;
+window.filterByType = filterByType;
+window.applyFilters = applyFilters;
+window.applyRecurringFilters = filterRecurringItems;
+window.loadTasks = loadTasks;
+window.loadRecurringTemplates = loadRecurringTemplates;
+window.triggerPhotoUpload = triggerPhotoUpload;
+window.handlePhotoSelected = handlePhotoSelected;
+window.cancelPhotoUpload = cancelPhotoUpload;
+window.submitUploadPhoto = submitUploadPhoto;
+window.openLightbox = openLightbox;
+window.closeLightbox = closeLightbox;
+
+// Checklist & Sub-items bindings
+window.addNewTaskItemRow = addNewTaskItemRow;
+window.addTplItemRow = addTplItemRow;
+window.toggleItemCompleted = toggleItemCompleted;
+window.toggleDetailAddRow = toggleDetailAddRow;
+window.submitAddDetailItem = submitAddDetailItem;
+window.deleteDetailItem = deleteDetailItem;
+
+// Item SOP Sample bindings
+window.openItemSampleModal = openItemSampleModal;
+window.openItemSampleModalById = openItemSampleModalById;
+window.closeItemSampleModal = closeItemSampleModal;
+window.reloadItemProofImages = reloadItemProofImages;
+window.setItemSampleFromPhoto = setItemSampleFromPhoto;
+window.handleItemSampleFileSelected = handleItemSampleFileSelected;
+window.cancelItemSampleUpload = cancelItemSampleUpload;
+window.submitUploadItemProofDirect = submitUploadItemProofDirect;
+window.submitUploadItemSampleDirect = submitUploadItemSampleDirect;
+window.deleteCurrentItemSample = deleteCurrentItemSample;
+
+// Recurring Master-Detail View bindings
+window.selectRecurringTemplate = selectRecurringTemplate;
+window.clearRecurringSearch = clearRecurringSearch;
+window.filterRecurringItems = filterRecurringItems;
+window.loadRecurringData = loadRecurringData;
+window.renderRecurringMasterList = renderRecurringMasterList;
+window.renderRecurringItemsTable = renderRecurringItemsTable;
+window.openQuickSubItemModal = openQuickSubItemModal;
+window.openQuickEditSubItemModal = openQuickEditSubItemModal;
+window.closeQuickSubItemModal = closeQuickSubItemModal;
+window.submitQuickSubItem = submitQuickSubItem;
+window.deleteSubItem = deleteSubItem;
+window.spawnCurrentSelectedTemplate = spawnCurrentSelectedTemplate;
+window.editCurrentSelectedTemplate = editCurrentSelectedTemplate;
+window.toggleCurrentTemplateActive = toggleCurrentTemplateActive;
+window.deleteCurrentSelectedTemplate = deleteCurrentSelectedTemplate;
+window.navigateToRecurringTemplateFromModal = navigateToRecurringTemplateFromModal;
+
+// Active Tasks Excel View bindings
+window.switchActiveTaskViewMode = switchActiveTaskViewMode;
+window.renderTaskExcelTable = renderTaskExcelTable;
+window.sortExcelTasks = sortExcelTasks;
+window.exportTasksToExcel = exportTasksToExcel;
+window.clearTaskSearch = clearTaskSearch;
+window.resetAllTaskFilters = resetAllTaskFilters;
+
+// Sub-item SOP Comparison & Camera bindings
+window.openSubItemCompareModal = openSubItemCompareModal;
+window.closeSubItemCompareModal = closeSubItemCompareModal;
+window.triggerCompareModalCamera = triggerCompareModalCamera;
+window.handleCompareModalPhotoCaptured = handleCompareModalPhotoCaptured;
+
+// Mobile app back button handler (Android back button / swipe back gesture)
+window.addEventListener('popstate', (e) => {
+  // 1. Close lightbox if open
+  const lightbox = document.getElementById('lightboxModal');
+  if (lightbox && lightbox.style.display !== 'none') {
+    closeLightbox();
+    return;
+  }
+  // 2. Close active modals if open
+  const modalsToClose = [
+    { el: document.getElementById('subItemCompareModal'), fn: closeSubItemCompareModal },
+    { el: document.getElementById('taskDetailModal'), fn: closeTaskDetailModal },
+    { el: document.getElementById('createTaskModal'), fn: closeCreateTaskModal },
+    { el: document.getElementById('quickSubItemModal'), fn: closeQuickSubItemModal },
+    { el: document.getElementById('quickEditSubItemModal'), fn: closeQuickEditSubItemModal },
+    { el: document.getElementById('itemSampleModal'), fn: closeItemSampleModal },
+    { el: document.getElementById('recurringTemplateModal'), fn: closeRecurringTemplateModal }
+  ];
+  for (const m of modalsToClose) {
+    if (m.el && (m.el.classList.contains('open') || m.el.style.display === 'flex' || m.el.style.display === 'block')) {
+      if (typeof m.fn === 'function') m.fn();
+      return;
+    }
+  }
+  // 3. If in recurring view and mobile detail is active, return to category list
+  const layoutContainer = document.querySelector('.category-layout-container');
+  if (layoutContainer && layoutContainer.classList.contains('mobile-detail-active')) {
+    selectRecurringTemplate(null, true);
+    return;
+  }
+});
+
+

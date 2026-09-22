@@ -1,0 +1,28 @@
+[Unit]
+Description=BOPP EM Maintenance System - FastAPI Application Service
+After=network.target network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/opt/bopp-maintenance
+EnvironmentFile=/opt/bopp-maintenance/.env
+ExecStart=/opt/bopp-maintenance/venv/bin/python -m uvicorn server:app --host 0.0.0.0 --port 8000 --workers 4
+
+# Tự động khởi động lại nếu bị crash
+Restart=always
+RestartSec=5s
+
+# Giới hạn tài nguyên và bảo vệ tiến trình
+KillMode=process
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=bopp-maintenance
+
+# Thiết lập giới hạn tệp mở
+LimitNOFILE=65535
+
+[Install]
+WantedBy=multi-user.target

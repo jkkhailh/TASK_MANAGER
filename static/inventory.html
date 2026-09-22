@@ -1,0 +1,3180 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport"
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-widget=resizes-content">
+  <title>Quản Lý Tồn Kho & Yêu Cầu Xuất Kho - BOPP Maintenance</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
+    rel="stylesheet">
+
+  <link rel="stylesheet" href="/static/style.css?v=20260921_0935">
+  <script>(function () { const t = localStorage.getItem('bopp_theme') || 'dark'; document.documentElement.setAttribute('data-theme', t); if (t === 'light') document.documentElement.classList.add('light-theme'); })();</script>
+  <script src="/static/theme.js?v=20260921_0800"></script>
+  <style>
+    /* Custom styles for Inventory Module */
+    .inv-stats-ribbon {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .inv-stat-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 14px 16px;
+      backdrop-filter: blur(12px);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .inv-stat-card::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: var(--accent-primary);
+      opacity: 0.8;
+    }
+
+    .inv-stat-card.success::after {
+      background: #10B981;
+    }
+
+    .inv-stat-card.warning::after {
+      background: #F59E0B;
+    }
+
+    .inv-stat-card.danger::after {
+      background: #EF4444;
+    }
+
+    .inv-stat-card.info::after {
+      background: #3B82F6;
+    }
+
+    .inv-stat-title {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .inv-stat-value {
+      font-size: 1.65rem;
+      font-weight: 800;
+      color: var(--text-primary);
+      font-family: var(--font-mono);
+      margin-top: 4px;
+    }
+
+    .inv-stat-sub {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    /* =========================================================================
+       Action Toolbar (Pill tabs & Action Buttons)
+       ========================================================================= */
+    .inv-action-toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      background: rgba(17, 24, 39, 0.9);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 10px 14px;
+      margin-bottom: 16px;
+      backdrop-filter: blur(12px);
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
+      flex-wrap: wrap;
+    }
+
+    .inv-mode-segmented {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: rgba(0, 0, 0, 0.45);
+      padding: 4px;
+      border-radius: var(--radius-sm);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .inv-segment-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      background: transparent;
+      border: none;
+      border-radius: 6px;
+      color: #9CA3AF;
+      font-size: 0.88rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      white-space: nowrap;
+    }
+
+    .inv-segment-btn:hover {
+      color: #FFFFFF;
+      background: rgba(255, 255, 255, 0.06);
+    }
+
+    .inv-segment-btn.active {
+      background: linear-gradient(135deg, #6366F1, #4F46E5);
+      color: #FFFFFF;
+      box-shadow: 0 2px 10px rgba(99, 102, 241, 0.4);
+    }
+
+    .inv-tab-pill-badge {
+      font-size: 0.72rem;
+      font-family: var(--font-mono);
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: var(--radius-full);
+      background: rgba(255, 255, 255, 0.18);
+      color: #FFFFFF;
+    }
+
+    .inv-action-buttons {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .btn-sync-erp {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 9px 16px;
+      background: rgba(31, 41, 55, 0.95);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: var(--radius-sm);
+      color: #F3F4F6;
+      font-size: 0.85rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .btn-sync-erp:hover {
+      background: rgba(55, 65, 81, 1);
+      border-color: #60A5FA;
+      color: #93C5FD;
+      box-shadow: 0 0 14px rgba(96, 165, 250, 0.25);
+    }
+
+    .btn-create-req {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 9px 18px;
+      background: linear-gradient(135deg, #10B981, #059669);
+      border: 1px solid rgba(16, 185, 129, 0.4);
+      border-radius: var(--radius-sm);
+      color: #FFFFFF;
+      font-size: 0.85rem;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 4px 14px rgba(16, 185, 129, 0.35);
+      transition: all 0.2s ease;
+    }
+
+    .btn-create-req:hover {
+      background: linear-gradient(135deg, #059669, #047857);
+      box-shadow: 0 6px 20px rgba(16, 185, 129, 0.5);
+      transform: translateY(-1px);
+    }
+
+    /* Warehouse Chips Horizontal Scroll */
+    .wh-chip-list {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding-bottom: 8px;
+      margin-bottom: 12px;
+      scrollbar-width: thin;
+    }
+
+    .wh-chip {
+      padding: 7px 14px;
+      background: rgba(31, 41, 55, 0.8);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: var(--radius-full);
+      color: #D1D5DB;
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.18s ease;
+    }
+
+    .wh-chip:hover {
+      background: rgba(55, 65, 81, 1);
+      border-color: #818CF8;
+      color: #FFFFFF;
+    }
+
+    .wh-chip.active {
+      background: linear-gradient(135deg, #4F46E5, #3B82F6);
+      border-color: #818CF8;
+      color: #FFFFFF;
+      box-shadow: 0 2px 12px rgba(99, 102, 241, 0.45);
+    }
+
+    .wh-chip .chip-count {
+      font-size: 0.72rem;
+      font-family: var(--font-mono);
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: var(--radius-full);
+      background: rgba(0, 0, 0, 0.35);
+      color: #E0E7FF;
+    }
+
+    .wh-chip.active .chip-count {
+      background: rgba(255, 255, 255, 0.22);
+      color: #FFFFFF;
+    }
+
+    /* Table Styles */
+    .inv-table-wrapper {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      overflow-x: auto;
+    }
+
+    .inv-table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 0.85rem;
+    }
+
+    .inv-table th {
+      padding: 12px 14px;
+      background: rgba(31, 41, 55, 0.5);
+      color: var(--text-secondary);
+      font-weight: 600;
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      border-bottom: 1px solid var(--border-subtle);
+      white-space: nowrap;
+    }
+
+    .inv-table td {
+      padding: 12px 14px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+      color: var(--text-primary);
+      vertical-align: middle;
+    }
+
+    .inv-table tr:hover td {
+      background: rgba(99, 102, 241, 0.04);
+    }
+
+    .item-id-badge {
+      font-family: var(--font-mono);
+      font-weight: 600;
+      color: #93C5FD;
+      font-size: 0.82rem;
+    }
+
+    .wh-badge {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: var(--radius-sm);
+      font-size: 0.75rem;
+      font-weight: 700;
+      background: rgba(59, 130, 246, 0.15);
+      color: #60A5FA;
+      border: 1px solid rgba(59, 130, 246, 0.3);
+    }
+
+    .storage-tag {
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      padding: 2px 7px;
+      background: rgba(107, 114, 128, 0.2);
+      color: #D1D5DB;
+      border-radius: 4px;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .stock-qty-val {
+      font-family: var(--font-mono);
+      font-weight: 700;
+      font-size: 0.95rem;
+    }
+
+    .stock-qty-val.positive {
+      color: #34D399;
+    }
+
+    .stock-qty-val.zero {
+      color: #9CA3AF;
+    }
+
+    .stock-qty-val.low {
+      color: #FBBF24;
+    }
+
+    /* Requests Sub-Nav & Multi-select & Voucher Code */
+    .requests-sub-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 12px;
+      background: rgba(255, 255, 255, 0.02);
+      padding: 8px 12px;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border-subtle);
+    }
+
+    .sub-badge {
+      font-size: 0.68rem;
+      font-weight: 700;
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 9999px;
+      padding: 1px 6px;
+      color: #E0E7FF;
+    }
+
+    .requests-action-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-export-excel {
+      background: linear-gradient(135deg, #10B981, #059669);
+      color: #FFFFFF;
+      border: 1px solid #34D399;
+      box-shadow: 0 2px 10px rgba(16, 185, 129, 0.35);
+      padding: 6px 14px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      border-radius: var(--radius-sm);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .btn-export-excel:hover {
+      background: linear-gradient(135deg, #059669, #047857);
+      box-shadow: 0 4px 14px rgba(16, 185, 129, 0.5);
+    }
+
+    .btn-assign-voucher {
+      padding: 6px 12px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      cursor: pointer;
+    }
+
+    .badge-select-count {
+      background: #EF4444;
+      color: #FFFFFF;
+      border-radius: 9999px;
+      font-size: 0.68rem;
+      font-weight: 700;
+      padding: 1px 6px;
+    }
+
+    .voucher-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-family: var(--font-mono);
+      font-size: 0.74rem;
+      font-weight: 600;
+      background: rgba(59, 130, 246, 0.15);
+      color: #93C5FD;
+      border: 1px solid rgba(59, 130, 246, 0.35);
+    }
+
+    .voucher-badge.unassigned {
+      background: rgba(156, 163, 175, 0.08);
+      color: #9CA3AF;
+      border: 1px dashed rgba(156, 163, 175, 0.35);
+      font-style: italic;
+      font-size: 0.7rem;
+    }
+
+    .inv-check {
+      cursor: pointer;
+      width: 16px;
+      height: 16px;
+      accent-color: #6366F1;
+      border-radius: 3px;
+    }
+
+    /* Modal Styling */
+    .inv-modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(8px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      padding: 16px;
+      opacity: 0;
+      pointer-events: none;
+      transition: all 0.2s ease;
+    }
+
+    .inv-modal-overlay.open {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .inv-modal-content {
+      background: #131B2B;
+      border: 1px solid var(--border-focus);
+      border-radius: var(--radius-lg);
+      width: 100%;
+      max-width: 680px;
+      max-height: 90vh;
+      overflow-y: auto;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.7);
+      padding: 24px;
+    }
+
+    /* Wide modal for Request Detail */
+    #requestDetailModal .inv-modal-content {
+      width: min(1560px, 97vw);
+      max-width: 1560px;
+      max-height: 94vh;
+      padding: 18px 24px;
+    }
+
+    .req-detail-hero-banner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 14px;
+      padding: 12px 16px;
+      background: linear-gradient(145deg, rgba(30, 41, 59, 0.7) 0%, rgba(15, 23, 42, 0.85) 100%);
+      border: 1px solid rgba(99, 102, 241, 0.28);
+      border-radius: var(--radius-sm);
+      flex-wrap: wrap;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+    }
+
+    .req-detail-top-grid {
+      display: grid;
+      grid-template-columns: 1.15fr 1fr;
+      gap: 14px;
+      margin-bottom: 16px;
+      align-items: stretch;
+    }
+
+    .req-detail-desktop-table {
+      display: block;
+    }
+
+    .req-detail-mobile-cards {
+      display: none;
+    }
+
+    .req-detail-item-card {
+      background: rgba(17, 24, 39, 0.75);
+      border: 1px solid rgba(99, 102, 241, 0.25);
+      border-radius: 10px;
+      padding: 12px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.25);
+    }
+
+    .mobile-app-bottom-bar {
+      display: none;
+    }
+
+    @media (max-width: 900px) {
+      .req-detail-top-grid {
+        grid-template-columns: 1fr;
+        gap: 8px;
+      }
+
+      #requestDetailModal .inv-modal-content {
+        padding: 0 !important;
+        border-radius: 0 !important;
+      }
+
+      #requestDetailModal .inv-modal-header {
+        margin: 0 !important;
+        padding: 6px 10px !important;
+      }
+
+      .req-detail-hero-banner {
+        padding: 8px 10px !important;
+        margin-bottom: 8px !important;
+      }
+
+      .req-detail-desktop-table {
+        display: none !important;
+      }
+
+      .req-detail-mobile-cards {
+        display: flex !important;
+      }
+
+      .mobile-app-bottom-bar {
+        display: none !important;
+      }
+    }
+
+    .inv-modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      border-bottom: 1px solid var(--border-subtle);
+      padding-bottom: 12px;
+    }
+
+    .inv-modal-title {
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .form-group {
+      margin-bottom: 14px;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      margin-bottom: 6px;
+      font-weight: 600;
+    }
+
+    .form-input,
+    .form-select,
+    .form-textarea {
+      width: 100%;
+      padding: 10px 14px;
+      background: rgba(17, 24, 39, 0.8);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      color: var(--text-primary);
+      font-size: 0.88rem;
+      font-family: inherit;
+    }
+
+    .form-input:focus,
+    .form-select:focus,
+    .form-textarea:focus {
+      outline: none;
+      border-color: var(--accent-primary);
+      box-shadow: 0 0 0 2px var(--accent-glow);
+    }
+
+    /* Search Item Dropdown in Request Modal */
+    .req-search-results-dropdown {
+      position: absolute;
+      top: calc(100% + 4px);
+      left: 0;
+      right: 0;
+      background: #111827;
+      border: 1px solid var(--border-focus);
+      border-radius: var(--radius-sm);
+      box-shadow: 0 14px 35px rgba(0, 0, 0, 0.85);
+      max-height: 250px;
+      overflow-y: auto;
+      z-index: 1200;
+    }
+
+    .req-search-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 9px 12px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      cursor: pointer;
+      transition: background 0.15s ease;
+    }
+
+    .req-search-item:hover {
+      background: rgba(99, 102, 241, 0.15);
+    }
+
+    .req-search-item:last-child {
+      border-bottom: none;
+    }
+
+    /* Request Items List & Ergonomic Cards */
+    .req-items-table-wrapper,
+    .req-items-list-wrapper {
+      background: transparent;
+      border: none;
+      border-radius: 0;
+      overflow: visible;
+      width: 100%;
+    }
+
+    .req-items-table-inner {
+      width: 100%;
+      min-width: 0;
+    }
+
+    .req-table-header {
+      display: none !important;
+    }
+
+    /* Request Items Table (Desktop List vs Mobile 3-Row Cards) */
+    .req-items-table-wrapper {
+      width: 100%;
+      background: rgba(0, 0, 0, 0.25);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      overflow: visible;
+    }
+
+    .req-items-container {
+      max-height: none !important;
+      overflow: visible !important;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Desktop View: Dạng List / Bảng chuẩn 1 dòng */
+    @media (min-width: 768px) {
+      .req-table-header {
+        display: grid !important;
+        grid-template-columns: minmax(180px, 2.2fr) 105px 65px 75px 60px minmax(160px, 1.8fr) 36px;
+        gap: 8px;
+        padding: 8px 12px;
+        background: rgba(255, 255, 255, 0.04);
+        border-bottom: 1px solid var(--border-subtle);
+        font-size: 0.7rem;
+        font-weight: 700;
+        color: var(--text-secondary);
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+        align-items: center;
+        border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+      }
+
+      .req-items-container {
+        padding: 8px;
+        gap: 6px;
+      }
+
+      .req-item-row {
+        display: grid !important;
+        grid-template-columns: minmax(180px, 2.2fr) 105px 65px 75px 60px minmax(160px, 1.8fr) 36px !important;
+        gap: 8px !important;
+        align-items: center !important;
+        padding: 6px 10px !important;
+        background: rgba(255, 255, 255, 0.03) !important;
+        border: 1px solid var(--border-subtle) !important;
+        border-radius: var(--radius-sm) !important;
+        margin-bottom: 0 !important;
+        transition: border-color 0.15s ease;
+      }
+
+      .req-item-row:hover {
+        border-color: rgba(99, 102, 241, 0.4) !important;
+      }
+
+      .req-row-h1 {
+        display: flex !important;
+        flex-direction: column !important;
+        justify-content: center !important;
+        gap: 2px !important;
+        min-width: 0 !important;
+        overflow: hidden !important;
+      }
+
+      .req-row-h2,
+      .req-row-h3 {
+        display: contents !important;
+      }
+
+      .req-item-code-badge {
+        font-size: 0.75rem;
+        font-weight: 700;
+        color: #818CF8;
+        font-family: var(--font-mono, monospace);
+        display: block;
+      }
+
+      .req-item-name {
+        font-size: 0.8rem;
+        color: #F3F4F6;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        display: block;
+      }
+
+      .req-h2-loc {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+
+      .req-h2-stock {
+        text-align: right;
+        font-size: 0.82rem;
+      }
+
+      .req-h2-qty .item-qty-input {
+        width: 100% !important;
+        height: 32px !important;
+        font-size: 0.88rem !important;
+        font-weight: 700 !important;
+        color: #34D399 !important;
+        text-align: right !important;
+        padding: 4px 6px !important;
+      }
+
+      .req-h2-unit .item-unit-input {
+        width: 100% !important;
+        height: 32px !important;
+        font-size: 0.78rem !important;
+        text-align: center !important;
+        padding: 4px 4px !important;
+      }
+
+      .req-row-h3 .item-remark-input {
+        width: 100% !important;
+        height: 32px !important;
+        font-size: 0.8rem !important;
+        padding: 4px 8px !important;
+      }
+
+      .req-lbl-xs {
+        display: none !important;
+      }
+
+      .btn-remove-req-item {
+        width: 28px !important;
+        height: 28px !important;
+        margin: 0 auto !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        border-radius: 4px !important;
+        background: rgba(239, 68, 68, 0.12) !important;
+        border: 1px solid rgba(239, 68, 68, 0.28) !important;
+        color: #EF4444 !important;
+        font-size: 1.1rem !important;
+        line-height: 1 !important;
+        cursor: pointer !important;
+        padding: 0 !important;
+      }
+    }
+
+    /* Mobile View: Dạng Thẻ 3 Hàng Tối Ưu (H1: Mã + Tên, H2: Kho + Vị trí + Tồn + SL + ĐVT, H3: Mục đích + Dấu xóa) */
+    @media (max-width: 767px) {
+      .req-items-table-wrapper {
+        background: transparent !important;
+        border: none !important;
+      }
+
+      .req-table-header {
+        display: none !important;
+      }
+
+      .req-items-container {
+        padding: 0 !important;
+        gap: 10px !important;
+      }
+
+      .req-item-row {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 8px !important;
+        background: rgba(17, 24, 39, 0.8) !important;
+        border: 1px solid rgba(99, 102, 241, 0.25) !important;
+        border-radius: 10px !important;
+        padding: 10px 12px !important;
+        touch-action: pan-y !important;
+      }
+
+      .req-item-row:focus-within {
+        border-color: rgba(99, 102, 241, 0.55) !important;
+        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35) !important;
+      }
+
+      /* Hàng 1: Mã + Tên Vật tư */
+      .req-row-h1 {
+        display: flex !important;
+        align-items: flex-start !important;
+        gap: 8px !important;
+        line-height: 1.4 !important;
+      }
+
+      .req-item-code-badge {
+        font-size: 0.76rem;
+        font-weight: 700;
+        color: #818CF8;
+        background: rgba(99, 102, 241, 0.15);
+        padding: 2px 7px;
+        border-radius: 4px;
+        border: 1px solid rgba(99, 102, 241, 0.28);
+        font-family: var(--font-mono, monospace);
+        flex-shrink: 0;
+      }
+
+      .req-item-name {
+        font-size: 0.88rem;
+        font-weight: 600;
+        color: #F3F4F6;
+        word-break: break-word;
+      }
+
+      /* Hàng 2: Mã kho, vị trí, số lượng tồn, số lượng xuất, đơn vị */
+      .req-row-h2 {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        gap: 6px !important;
+        background: rgba(0, 0, 0, 0.28) !important;
+        padding: 6px 10px !important;
+        border-radius: 6px !important;
+        border: 1px solid rgba(255, 255, 255, 0.05) !important;
+      }
+
+      .req-h2-loc {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        flex-shrink: 0;
+      }
+
+      .req-h2-stock {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 0.8rem;
+        flex-shrink: 0;
+      }
+
+      .req-h2-qty {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        flex-shrink: 0;
+      }
+
+      .req-h2-qty .item-qty-input {
+        width: 65px !important;
+        height: 32px !important;
+        font-size: 0.9rem !important;
+        font-weight: 700 !important;
+        color: #34D399 !important;
+        text-align: right !important;
+        padding: 4px 6px !important;
+        background: rgba(15, 23, 42, 0.9) !important;
+        border: 1px solid rgba(99, 102, 241, 0.35) !important;
+        border-radius: 5px !important;
+      }
+
+      .req-h2-unit {
+        flex-shrink: 0;
+      }
+
+      .req-h2-unit .item-unit-input {
+        width: 50px !important;
+        height: 32px !important;
+        font-size: 0.76rem !important;
+        text-align: center !important;
+        padding: 4px 4px !important;
+        background: rgba(15, 23, 42, 0.7) !important;
+        border: 1px solid var(--border-subtle) !important;
+        border-radius: 5px !important;
+        color: #E5E7EB !important;
+      }
+
+      .req-lbl-xs {
+        font-size: 0.7rem !important;
+        color: var(--text-muted) !important;
+        font-weight: 600 !important;
+      }
+
+      /* Hàng 3: Mục đích và dấu xóa */
+      .req-row-h3 {
+        display: flex !important;
+        align-items: center !important;
+        gap: 8px !important;
+      }
+
+      .req-row-h3 .item-remark-input {
+        flex: 1 !important;
+        height: 36px !important;
+        font-size: 0.85rem !important;
+        background: rgba(15, 23, 42, 0.85) !important;
+        border: 1px solid rgba(99, 102, 241, 0.35) !important;
+        border-radius: 6px !important;
+        color: #F9FAFB !important;
+        padding: 6px 10px !important;
+      }
+
+      .req-row-h3 .item-remark-input:focus {
+        border-color: #6366F1 !important;
+        background: rgba(15, 23, 42, 1) !important;
+        box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.25) !important;
+      }
+
+      .req-row-h3 .btn-remove-req-item {
+        width: 36px !important;
+        height: 36px !important;
+        border-radius: 6px !important;
+        background: rgba(239, 68, 68, 0.12) !important;
+        border: 1px solid rgba(239, 68, 68, 0.28) !important;
+        color: #EF4444 !important;
+        font-size: 1.3rem !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        cursor: pointer !important;
+        flex-shrink: 0 !important;
+        line-height: 1 !important;
+        padding: 0 !important;
+      }
+
+      .req-row-h3 .btn-remove-req-item:hover {
+        background: #EF4444 !important;
+        color: #FFFFFF !important;
+      }
+    }
+
+    /* Modal Header Action Buttons */
+    .btn-header-save {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 6px 14px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, #4F46E5, #6366F1);
+      color: #FFFFFF;
+      border: none;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(79, 70, 229, 0.4);
+      white-space: nowrap;
+      transition: all 0.15s ease;
+      line-height: 1.2;
+    }
+
+    .btn-header-save:hover {
+      background: linear-gradient(135deg, #4338CA, #4F46E5);
+      box-shadow: 0 3px 12px rgba(79, 70, 229, 0.6);
+      transform: translateY(-1px);
+    }
+
+    .btn-header-save:active {
+      transform: translateY(0);
+    }
+
+    .btn-header-save:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+
+    .btn-modal-close-icon {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-size: 1.5rem;
+      cursor: pointer;
+      padding: 2px 6px;
+      line-height: 1;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 4px;
+      transition: all 0.15s ease;
+    }
+
+    .btn-modal-close-icon:hover {
+      color: #FFFFFF;
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    /* Switch & Slider */
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 42px;
+      height: 22px;
+    }
+
+    .switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: #4B5563;
+      transition: .3s;
+      border-radius: 22px;
+    }
+
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 16px;
+      width: 16px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      transition: .3s;
+      border-radius: 50%;
+    }
+
+    input:checked+.slider {
+      background-color: #10B981;
+    }
+
+    input:checked+.slider:before {
+      transform: translateX(20px);
+    }
+
+    /* Receipt badges & actions */
+    .receipt-badge-received {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: rgba(16, 185, 129, 0.15);
+      color: #34D399;
+      border: 1px solid rgba(16, 185, 129, 0.35);
+      padding: 2px 7px;
+      border-radius: 12px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .receipt-badge-unreceived {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: rgba(156, 163, 175, 0.12);
+      color: #9CA3AF;
+      border: 1px solid rgba(156, 163, 175, 0.25);
+      padding: 2px 7px;
+      border-radius: 12px;
+      font-size: 0.72rem;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+
+    .btn-receive-action {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      cursor: pointer;
+      background: rgba(16, 185, 129, 0.15);
+      color: #34D399;
+      border: 1px solid rgba(16, 185, 129, 0.35);
+      transition: all 0.15s ease;
+      white-space: nowrap;
+    }
+
+    .btn-receive-action:hover {
+      background: rgba(16, 185, 129, 0.28);
+      border-color: #10B981;
+      transform: translateY(-1px);
+    }
+
+    .btn-photo-preview {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 0.68rem;
+      color: #93C5FD;
+      background: rgba(59, 130, 246, 0.15);
+      border: 1px solid rgba(59, 130, 246, 0.3);
+      cursor: pointer;
+      white-space: nowrap;
+      margin-left: 2px;
+    }
+
+    .btn-photo-preview:hover {
+      background: rgba(59, 130, 246, 0.28);
+    }
+
+    /* Issued Items Photo Thumbnails in Table & Cards */
+    .receipt-photo-thumb-wrap {
+      position: relative;
+      display: inline-block;
+      width: 44px;
+      height: 44px;
+      border-radius: 6px;
+      overflow: hidden;
+      border: 1.5px solid rgba(52, 211, 153, 0.4);
+      background: #0B0F17;
+      cursor: pointer;
+      flex-shrink: 0;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+      transition: all 0.2s ease;
+    }
+
+    .receipt-photo-thumb-wrap:hover {
+      border-color: #34D399;
+      transform: scale(1.08);
+      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.35);
+      z-index: 5;
+    }
+
+    .receipt-photo-thumb {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      transition: transform 0.2s ease;
+    }
+
+    .receipt-photo-thumb-wrap:hover .receipt-photo-thumb {
+      transform: scale(1.12);
+    }
+
+    .receipt-photo-zoom-icon {
+      position: absolute;
+      right: 2px;
+      bottom: 2px;
+      background: rgba(0, 0, 0, 0.65);
+      border-radius: 3px;
+      font-size: 0.6rem;
+      padding: 1px 3px;
+      color: #fff;
+      line-height: 1;
+      pointer-events: none;
+    }
+
+    .receipt-photo-thumb-sm {
+      width: 34px;
+      height: 34px;
+      border-radius: 5px;
+      object-fit: cover;
+      border: 1px solid rgba(52, 211, 153, 0.5);
+      background: #0B0F17;
+      cursor: pointer;
+      flex-shrink: 0;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+      transition: transform 0.15s ease;
+    }
+
+    .receipt-photo-thumb-sm:hover {
+      transform: scale(1.1);
+      border-color: #34D399;
+    }
+
+    .req-row-photos-strip {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 6px;
+      padding-top: 5px;
+      border-top: 1px dashed rgba(255, 255, 255, 0.08);
+      flex-wrap: wrap;
+    }
+
+    .req-photo-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      background: rgba(16, 185, 129, 0.12);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      border-radius: 6px;
+      padding: 2px 6px 2px 2px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .req-photo-chip:hover {
+      background: rgba(16, 185, 129, 0.22);
+      border-color: #34D399;
+      transform: translateY(-1px);
+    }
+
+    .req-photo-chip img {
+      width: 26px;
+      height: 26px;
+      border-radius: 4px;
+      object-fit: cover;
+    }
+
+    .req-photo-chip span {
+      font-size: 0.7rem;
+      color: #A7F3D0;
+      font-weight: 500;
+      max-width: 140px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .btn-unreceive-link {
+      background: transparent;
+      border: none;
+      font-size: 0.68rem;
+      color: #EF4444;
+      padding: 0;
+      cursor: pointer;
+      margin-top: 2px;
+      text-decoration: underline;
+      opacity: 0.8;
+      transition: opacity 0.15s ease;
+    }
+
+    .btn-unreceive-link:hover {
+      opacity: 1;
+      color: #F87171;
+    }
+
+    /* Inventory Item Card styling & Mobile Collapsible Filter styles */
+    .inv-item-card {
+      background: rgba(17, 24, 39, 0.75);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 8px;
+      padding: 8px 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      width: 100%;
+      box-sizing: border-box;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+    }
+
+    .inv-item-card-h1 {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .inv-item-card-name {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #F3F4F6;
+      line-height: 1.35;
+    }
+
+    .inv-item-card-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 2px;
+    }
+
+    .btn-toggle-filter {
+      display: none;
+    }
+
+    .filter-count-badge {
+      display: none;
+    }
+
+    .items-mobile-list {
+      display: none;
+    }
+
+    .inv-desktop-table {
+      display: block;
+    }
+
+    .mobile-filter-panel {
+      display: flex;
+      width: 100%;
+    }
+
+    @keyframes filterSlideDown {
+      from {
+        opacity: 0;
+        transform: translateY(-4px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* Mobile Responsive Optimizations (Rules: Collapsible Filters, Edge-to-Edge, Sticky Header Save, Typography, Hide Menu) */
+    @media (max-width: 900px) {
+
+      /* Rule 5: Ẩn Head Menu Bar Trên Mobile */
+      .app-header .main-nav,
+      .main-nav,
+      .sub-nav-bar {
+        display: none !important;
+      }
+
+      /* Rule 2: Edge-to-Edge Spacing (6px - 8px) */
+      .app-main-compact {
+        padding: 6px 6px 80px 6px !important;
+        max-width: 100vw !important;
+        overflow-x: hidden !important;
+      }
+
+      /* Balanced Mode Tabs & Action Buttons */
+      .inv-action-toolbar {
+        padding: 5px 6px !important;
+        gap: 6px !important;
+        margin-bottom: 8px !important;
+        flex-direction: column !important;
+        border-radius: var(--radius-sm) !important;
+      }
+
+      .inv-mode-segmented {
+        display: flex !important;
+        width: 100% !important;
+        gap: 4px !important;
+        padding: 3px !important;
+      }
+
+      .inv-segment-btn {
+        flex: 1 !important;
+        justify-content: center !important;
+        font-size: 0.76rem !important;
+        padding: 7px 4px !important;
+        gap: 5px !important;
+        white-space: nowrap !important;
+      }
+
+      .inv-segment-btn svg {
+        width: 14px !important;
+        height: 14px !important;
+      }
+
+      .inv-tab-pill-badge {
+        font-size: 0.65rem !important;
+        padding: 1px 5px !important;
+      }
+
+      .inv-action-buttons {
+        display: flex !important;
+        width: 100% !important;
+        gap: 6px !important;
+      }
+
+      .btn-sync-erp {
+        flex: 1 !important;
+        justify-content: center !important;
+        font-size: 0.74rem !important;
+        padding: 7px 8px !important;
+        gap: 5px !important;
+        white-space: nowrap !important;
+      }
+
+      .btn-sync-erp svg {
+        width: 13px !important;
+        height: 13px !important;
+      }
+
+      .btn-create-req {
+        flex: 1.25 !important;
+        justify-content: center !important;
+        font-size: 0.74rem !important;
+        padding: 7px 8px !important;
+        gap: 5px !important;
+        white-space: nowrap !important;
+      }
+
+      .btn-create-req svg {
+        width: 13px !important;
+        height: 13px !important;
+      }
+
+      /* Rule 1: Collapsible Filter Button & Badge */
+      .btn-toggle-filter {
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 5px !important;
+        height: 32px !important;
+        min-height: 32px !important;
+        padding: 0 10px !important;
+        background: rgba(99, 102, 241, 0.12) !important;
+        border: 1px solid rgba(99, 102, 241, 0.3) !important;
+        border-radius: 6px !important;
+        color: #C7D2FE !important;
+        font-size: 0.76rem !important;
+        font-weight: 700 !important;
+        cursor: pointer !important;
+        flex-shrink: 0 !important;
+        white-space: nowrap !important;
+        transition: all 0.15s ease !important;
+      }
+
+      .btn-toggle-filter:active,
+      .btn-toggle-filter.is-active {
+        background: rgba(99, 102, 241, 0.25) !important;
+        border-color: #818CF8 !important;
+        color: #FFFFFF !important;
+      }
+
+      .btn-toggle-filter.has-active-filters {
+        background: rgba(99, 102, 241, 0.22) !important;
+        border-color: #6366F1 !important;
+        color: #FFFFFF !important;
+      }
+
+      .filter-count-badge {
+        display: inline-block !important;
+        background: #6366F1 !important;
+        color: #FFFFFF !important;
+        font-size: 0.65rem !important;
+        font-weight: 700 !important;
+        padding: 1px 5px !important;
+        border-radius: 9999px !important;
+        line-height: 1.2 !important;
+      }
+
+      /* Rule 1: Collapsible Filter Panels (Mặc định ẩn trên Mobile) */
+      .mobile-filter-panel {
+        display: none !important;
+        width: 100% !important;
+        flex-direction: column !important;
+        gap: 6px !important;
+        margin-top: 6px !important;
+        padding-top: 6px !important;
+        border-top: 1px dashed rgba(255, 255, 255, 0.1) !important;
+      }
+
+      .mobile-filter-panel.is-open {
+        display: flex !important;
+        animation: filterSlideDown 0.2s ease-out !important;
+      }
+
+      /* Compact Warehouse Quick Filter Chips */
+      .wh-chip-list {
+        gap: 5px !important;
+        margin-bottom: 4px !important;
+        padding-bottom: 2px !important;
+      }
+
+      .wh-chip {
+        padding: 4px 9px !important;
+        font-size: 0.72rem !important;
+        gap: 5px !important;
+        border-radius: var(--radius-sm) !important;
+      }
+
+      .wh-chip .chip-count {
+        font-size: 0.64rem !important;
+        padding: 1px 5px !important;
+      }
+
+      /* Search & Status Filter Toolbar */
+      .toolbar-card {
+        margin-bottom: 6px !important;
+        padding: 5px 6px !important;
+        gap: 6px !important;
+        flex-direction: column !important;
+        border-radius: var(--radius-sm) !important;
+      }
+
+      .inv-search-bar-row {
+        display: flex !important;
+        align-items: center !important;
+        gap: 6px !important;
+        width: 100% !important;
+      }
+
+      .search-box {
+        height: 32px !important;
+        padding: 0 8px !important;
+        flex: 1 !important;
+        width: auto !important;
+      }
+
+      .search-box input {
+        font-size: 0.75rem !important;
+      }
+
+      .search-box .search-icon {
+        width: 14px !important;
+        height: 14px !important;
+      }
+
+      .segmented-control {
+        display: flex !important;
+        width: 100% !important;
+        gap: 3px !important;
+        padding: 2px !important;
+        height: 28px !important;
+      }
+
+      .segmented-control .seg-btn {
+        flex: 1 !important;
+        justify-content: center !important;
+        padding: 3px 2px !important;
+        font-size: 0.68rem !important;
+        height: 100% !important;
+        white-space: nowrap !important;
+      }
+
+      /* Rule 2: Item Mobile Card View (thay thế Table 8 cột trên Mobile) */
+      .inv-desktop-table {
+        display: none !important;
+      }
+
+      .items-mobile-list {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 6px !important;
+        width: 100% !important;
+        padding: 0 !important;
+        margin: 0 !important;
+      }
+
+      .inv-item-card,
+      .req-card,
+      .req-detail-item-card {
+        width: 100% !important;
+        margin: 0 0 6px 0 !important;
+        padding: 8px 10px !important;
+        border-radius: 8px !important;
+        box-sizing: border-box !important;
+      }
+
+      .requests-mobile-list {
+        padding: 0 !important;
+        margin: 0 !important;
+        gap: 6px !important;
+        width: 100% !important;
+      }
+
+      .item-id-badge {
+        font-size: 0.74rem !important;
+      }
+
+      .wh-badge {
+        font-size: 0.68rem !important;
+        padding: 2px 6px !important;
+      }
+
+      .stock-qty-val {
+        font-size: 0.85rem !important;
+      }
+
+      /* Rule 3 & 4: Popup Modals Fullscreen View, Header Save Button & Typography */
+      .inv-modal-overlay {
+        padding: 0 !important;
+        align-items: stretch !important;
+      }
+
+      .inv-modal-content,
+      #requestDetailModal .inv-modal-content,
+      #createRequestModal .inv-modal-content,
+      #assignVoucherModal .inv-modal-content,
+      #receiveItemModal .inv-modal-content {
+        width: 100vw !important;
+        max-width: 100vw !important;
+        min-width: 100vw !important;
+        height: 100vh !important;
+        max-height: 100vh !important;
+        margin: 0 !important;
+        border-radius: 0 !important;
+        border: none !important;
+        display: flex !important;
+        flex-direction: column !important;
+        padding: 0 !important;
+        box-shadow: none !important;
+        overflow: hidden !important;
+      }
+
+      .inv-modal-header {
+        position: sticky !important;
+        top: 0 !important;
+        z-index: 20 !important;
+        background: #0F172A !important;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+        padding: 6px 10px !important;
+        margin: 0 !important;
+        min-height: 46px !important;
+        height: 46px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        gap: 8px !important;
+        flex-shrink: 0 !important;
+        box-sizing: border-box !important;
+      }
+
+      .inv-modal-title,
+      .inv-modal-title span {
+        font-size: 0.98rem !important;
+        font-weight: 700 !important;
+        color: #FFFFFF !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+      }
+
+      .inv-modal-title svg {
+        width: 18px !important;
+        height: 18px !important;
+        color: #60A5FA !important;
+        flex-shrink: 0 !important;
+      }
+
+      .btn-header-save {
+        height: 32px !important;
+        min-height: 32px !important;
+        padding: 5px 12px !important;
+        font-size: 0.82rem !important;
+        font-weight: 700 !important;
+        border-radius: 6px !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 4px !important;
+        flex-shrink: 0 !important;
+        box-shadow: 0 2px 8px rgba(79, 70, 229, 0.35) !important;
+        background: linear-gradient(135deg, #4F46E5 0%, #6366F1 100%) !important;
+        color: #FFFFFF !important;
+        border: 1px solid rgba(255, 255, 255, 0.2) !important;
+      }
+
+      .btn-header-save:active {
+        transform: scale(0.96) !important;
+        opacity: 0.9 !important;
+      }
+
+      .btn-modal-back {
+        height: 32px !important;
+        min-height: 32px !important;
+        padding: 5px 8px !important;
+        border-radius: 6px !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 4px !important;
+        font-size: 0.8rem !important;
+        flex-shrink: 0 !important;
+      }
+
+      .btn-modal-back .back-text,
+      .btn-modal-back span {
+        display: none !important;
+      }
+
+      .desktop-only-close {
+        display: none !important;
+      }
+
+      .inv-modal-body,
+      form#formCreateRequest,
+      #requestDetailModal .inv-modal-body,
+      #assignVoucherModal .inv-modal-body,
+      #receiveItemModal .inv-modal-body {
+        flex: 1 1 auto !important;
+        overflow-y: auto !important;
+        padding: 8px 8px 30px 8px !important;
+        -webkit-overflow-scrolling: touch !important;
+      }
+
+      .requests-sub-toolbar {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 6px !important;
+        padding: 6px 6px !important;
+      }
+
+      .requests-sub-mode-row {
+        display: flex !important;
+        align-items: center !important;
+        gap: 6px !important;
+        width: 100% !important;
+      }
+
+      .sub-mode-segmented,
+      .voucher-filter-segmented,
+      .receipt-filter-segmented {
+        width: 100% !important;
+        display: flex !important;
+      }
+
+      .sub-mode-segmented .seg-btn,
+      .voucher-filter-segmented .seg-btn,
+      .receipt-filter-segmented .seg-btn {
+        flex: 1 !important;
+        justify-content: center !important;
+        font-size: 0.68rem !important;
+        padding: 5px 2px !important;
+      }
+
+      .requests-action-group {
+        width: 100% !important;
+        display: flex !important;
+        flex-wrap: wrap !important;
+        gap: 6px !important;
+      }
+
+      .btn-export-excel,
+      .btn-assign-voucher {
+        flex: 1 !important;
+        justify-content: center !important;
+        font-size: 0.72rem !important;
+        padding: 7px 4px !important;
+      }
+    }
+
+    /* =========================================================================
+       LIGHT THEME OVERRIDES FOR INVENTORY MODALS, CARDS & TABLES
+       ========================================================================= */
+    [data-theme="light"] .inv-modal-content,
+    [data-theme="light"] #requestDetailModal .inv-modal-content,
+    [data-theme="light"] #createRequestModal .inv-modal-content,
+    [data-theme="light"] #assignVoucherModal .inv-modal-content,
+    [data-theme="light"] #receiveItemModal .inv-modal-content {
+      background: #FFFFFF !important;
+      border: 1px solid #CBD5E1 !important;
+      color: #0F172A !important;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.12) !important;
+    }
+
+    @media (max-width: 900px) {
+
+      [data-theme="light"] .inv-modal-content,
+      [data-theme="light"] #requestDetailModal .inv-modal-content,
+      [data-theme="light"] #createRequestModal .inv-modal-content,
+      [data-theme="light"] #assignVoucherModal .inv-modal-content,
+      [data-theme="light"] #receiveItemModal .inv-modal-content {
+        background: #FFFFFF !important;
+        border: none !important;
+      }
+    }
+
+    [data-theme="light"] .inv-modal-header,
+    [data-theme="light"] #requestDetailModal .inv-modal-header {
+      background: #F8FAFC !important;
+      border-bottom: 1px solid #E2E8F0 !important;
+      color: #0F172A !important;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04) !important;
+    }
+
+    [data-theme="light"] .inv-modal-title,
+    [data-theme="light"] .inv-modal-title span,
+    [data-theme="light"] .inv-modal-title div {
+      color: #0F172A !important;
+    }
+
+    [data-theme="light"] .btn-modal-back {
+      background: #F1F5F9 !important;
+      border: 1px solid #CBD5E1 !important;
+      color: #334155 !important;
+    }
+
+    [data-theme="light"] .btn-modal-back:hover {
+      background: #E2E8F0 !important;
+      color: #0F172A !important;
+    }
+
+    [data-theme="light"] .btn-header-save {
+      color: #FFFFFF !important;
+    }
+
+    [data-theme="light"] .req-detail-hero-banner {
+      background: #F8FAFC !important;
+      border: 1px solid #CBD5E1 !important;
+      color: #0F172A !important;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
+    }
+
+    [data-theme="light"] .req-detail-hero-banner span,
+    [data-theme="light"] .req-detail-hero-banner div {
+      color: #0F172A !important;
+    }
+
+    [data-theme="light"] .req-detail-card,
+    [data-theme="light"] .inv-detail-card,
+    [data-theme="light"] .inv-stat-card {
+      background: #FFFFFF !important;
+      border: 1px solid #E2E8F0 !important;
+      color: #0F172A !important;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
+    }
+
+    [data-theme="light"] .req-detail-item-card {
+      background: #FFFFFF !important;
+      border: 1px solid #CBD5E1 !important;
+      color: #0F172A !important;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
+    }
+
+    [data-theme="light"] .req-detail-item-card span,
+    [data-theme="light"] .req-detail-item-card strong,
+    [data-theme="light"] .req-detail-item-card div {
+      color: #0F172A !important;
+    }
+
+    [data-theme="light"] .form-label {
+      color: #334155 !important;
+      font-weight: 600 !important;
+    }
+
+    [data-theme="light"] .form-input,
+    [data-theme="light"] .form-select,
+    [data-theme="light"] .form-textarea {
+      background: #FFFFFF !important;
+      border: 1px solid #CBD5E1 !important;
+      color: #0F172A !important;
+    }
+
+    [data-theme="light"] .form-input:focus,
+    [data-theme="light"] .form-select:focus,
+    [data-theme="light"] .form-textarea:focus {
+      border-color: #6366F1 !important;
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15) !important;
+    }
+
+    [data-theme="light"] .inv-table th {
+      background: #F1F5F9 !important;
+      color: #334155 !important;
+      border-bottom: 2px solid #CBD5E1 !important;
+      font-weight: 700 !important;
+    }
+
+    [data-theme="light"] .inv-table td {
+      background: #FFFFFF !important;
+      color: #0F172A !important;
+      border-bottom: 1px solid #E2E8F0 !important;
+    }
+
+    [data-theme="light"] .inv-table tr:hover td {
+      background: #F8FAFC !important;
+    }
+
+    [data-theme="light"] .inv-item-card {
+      background: #FFFFFF !important;
+      border: 1px solid #E2E8F0 !important;
+      color: #0F172A !important;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
+    }
+
+    [data-theme="light"] .inv-item-card:hover {
+      background: #F8FAFC !important;
+      border-color: #CBD5E1 !important;
+    }
+
+    [data-theme="light"] .inv-item-title,
+    [data-theme="light"] .inv-item-code {
+      color: #0F172A !important;
+    }
+
+    [data-theme="light"] .inv-stat-val {
+      color: #0F172A !important;
+    }
+
+    [data-theme="light"] .inv-stat-label {
+      color: #64748B !important;
+    }
+
+    [data-theme="light"] .sub-mode-segmented,
+    [data-theme="light"] .voucher-filter-segmented,
+    [data-theme="light"] .receipt-filter-segmented {
+      background: #F1F5F9 !important;
+      border: 1px solid #CBD5E1 !important;
+    }
+
+    /* Light Theme: Top Action Toolbar & Segmented Mode */
+    [data-theme="light"] .inv-action-toolbar {
+      background: #FFFFFF !important;
+      border: 1px solid #E2E8F0 !important;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04) !important;
+    }
+
+    [data-theme="light"] .inv-mode-segmented {
+      background: #F1F5F9 !important;
+      border: 1px solid #CBD5E1 !important;
+    }
+
+    [data-theme="light"] .inv-segment-btn {
+      color: #475569 !important;
+    }
+
+    [data-theme="light"] .inv-segment-btn:hover {
+      color: #0F172A !important;
+      background: rgba(0, 0, 0, 0.05) !important;
+    }
+
+    [data-theme="light"] .inv-segment-btn.active {
+      background: #4F46E5 !important;
+      color: #FFFFFF !important;
+      box-shadow: 0 2px 8px rgba(79, 70, 229, 0.35) !important;
+    }
+
+    [data-theme="light"] .inv-tab-pill-badge {
+      background: rgba(255, 255, 255, 0.25) !important;
+      color: #FFFFFF !important;
+    }
+
+    [data-theme="light"] .btn-sync-erp {
+      background: #F8FAFC !important;
+      border: 1px solid #CBD5E1 !important;
+      color: #334155 !important;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05) !important;
+    }
+
+    [data-theme="light"] .btn-sync-erp:hover {
+      background: #EEF2FF !important;
+      border-color: #818CF8 !important;
+      color: #4338CA !important;
+    }
+
+    /* Light Theme: Warehouse Chips & Segmented Controls */
+    [data-theme="light"] .wh-chip {
+      background: #F1F5F9 !important;
+      border: 1px solid #CBD5E1 !important;
+      color: #334155 !important;
+    }
+
+    [data-theme="light"] .wh-chip:hover {
+      background: #E2E8F0 !important;
+      border-color: #94A3B8 !important;
+      color: #0F172A !important;
+    }
+
+    [data-theme="light"] .wh-chip.active {
+      background: #4F46E5 !important;
+      border-color: #4338CA !important;
+      color: #FFFFFF !important;
+      box-shadow: 0 2px 8px rgba(79, 70, 229, 0.35) !important;
+    }
+
+    [data-theme="light"] .wh-chip .chip-count {
+      background: #E2E8F0 !important;
+      color: #475569 !important;
+    }
+
+    [data-theme="light"] .wh-chip.active .chip-count {
+      background: rgba(255, 255, 255, 0.25) !important;
+      color: #FFFFFF !important;
+    }
+
+    [data-theme="light"] .segmented-control {
+      background: #E2E8F0 !important;
+      border: 1px solid #CBD5E1 !important;
+    }
+
+    [data-theme="light"] .seg-btn {
+      color: #475569 !important;
+    }
+
+    [data-theme="light"] .seg-btn.active {
+      background: #FFFFFF !important;
+      color: #4F46E5 !important;
+      font-weight: 700 !important;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
+    }
+
+    /* Light Theme: Table Material Badges & Tags */
+    [data-theme="light"] .item-id-badge {
+      color: #1D4ED8 !important;
+    }
+
+    [data-theme="light"] .wh-badge {
+      background: #EFF6FF !important;
+      border: 1px solid #BFDBFE !important;
+      color: #1D4ED8 !important;
+    }
+
+    [data-theme="light"] .storage-tag,
+    [data-theme="light"] .storage-badge {
+      background: #F1F5F9 !important;
+      border: 1px solid #CBD5E1 !important;
+      color: #334155 !important;
+    }
+
+    /* Light Theme: Search Autocomplete Dropdown in Request Modal */
+    [data-theme="light"] .req-search-results-dropdown {
+      background: #FFFFFF !important;
+      border: 1px solid #CBD5E1 !important;
+      box-shadow: 0 12px 36px rgba(0, 0, 0, 0.15) !important;
+    }
+
+    [data-theme="light"] .req-search-item {
+      border-bottom: 1px solid #F1F5F9 !important;
+    }
+
+    [data-theme="light"] .req-search-item:hover {
+      background: #F8FAFC !important;
+    }
+
+    /* Light Theme: Request Items Table & Rows in Modal */
+    [data-theme="light"] .req-items-table-wrapper {
+      background: #F8FAFC !important;
+      border: 1px solid #E2E8F0 !important;
+    }
+
+    [data-theme="light"] .req-table-header {
+      background: #F1F5F9 !important;
+      border-bottom: 1px solid #E2E8F0 !important;
+      color: #475569 !important;
+    }
+
+    [data-theme="light"] .req-item-row {
+      background: #FFFFFF !important;
+      border: 1px solid #E2E8F0 !important;
+    }
+
+    [data-theme="light"] .req-item-row:hover {
+      border-color: #818CF8 !important;
+    }
+
+    [data-theme="light"] .req-item-code-badge {
+      color: #1D4ED8 !important;
+    }
+
+    [data-theme="light"] .req-item-name {
+      color: #0F172A !important;
+    }
+
+    [data-theme="light"] .item-qty-input,
+    [data-theme="light"] .item-unit-input,
+    [data-theme="light"] .item-remark-input,
+    [data-theme="light"] .item-id-input,
+    [data-theme="light"] .item-name-input,
+    [data-theme="light"] .item-storage-input {
+      background: #FFFFFF !important;
+      border: 1px solid #CBD5E1 !important;
+      color: #0F172A !important;
+    }
+
+    [data-theme="light"] .req-h2-qty .item-qty-input {
+      color: #059669 !important;
+    }
+  </style>
+</head>
+
+<body>
+  <!-- Header with Unified 5-Menu Navigation -->
+  <header class="app-header">
+    <div class="header-content">
+      <div class="header-brand-row">
+        <!-- Logo & Branding with App Launcher Dropdown -->
+        <div class="brand-wrapper-relative">
+          <div class="brand-clickable" id="brandMenuTrigger" onclick="toggleSystemAppMenu(event)"
+            title="Bấm vào Logo để chuyển nhanh giữa các trang chính">
+            <div class="brand-icon">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
+                <path d="M2 17l10 5 10-5"></path>
+                <path d="M2 12l10 5 10-5"></path>
+              </svg>
+            </div>
+            <div>
+              <div style="display: flex; align-items: center;">
+                <h1 class="brand-title">BOPP EM <span>Maintenance</span></h1>
+                <span class="brand-menu-trigger-badge">
+                  MENU
+                  <svg class="brand-menu-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2.5">
+                    <path d="M6 9l6 6 6-6" />
+                  </svg>
+                </span>
+              </div>
+              <div class="system-status">
+                <span class="status-dot"></span>
+                <span>Tồn kho: <strong id="headerLastSync">Đang tải...</strong></span>
+              </div>
+            </div>
+          </div>
+
+          <!-- System App Launcher Dropdown Menu -->
+          <div class="system-app-menu-dropdown" id="systemAppMenu">
+            <div class="app-menu-header">
+              <span class="app-menu-title">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                  <rect x="3" y="3" width="7" height="7"></rect>
+                  <rect x="14" y="3" width="7" height="7"></rect>
+                  <rect x="14" y="14" width="7" height="7"></rect>
+                  <rect x="3" y="14" width="7" height="7"></rect>
+                </svg>
+                CÁC PHÂN HỆ HỆ THỐNG
+              </span>
+              <span class="app-menu-badge-hub">BOPP HUB</span>
+            </div>
+
+            <div class="app-menu-grid">
+              <!-- 1. Công việc nội bộ -->
+              <a href="/" class="app-menu-item">
+                <div class="app-menu-icon" style="background: rgba(244, 63, 94, 0.15); color: #FB7185;">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path
+                      d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z">
+                    </path>
+                  </svg>
+                </div>
+                <div class="app-menu-text">
+                  <div class="app-menu-name-row">
+                    <span class="app-menu-name">Công Việc Nội Bộ</span>
+                  </div>
+                  <div class="app-menu-desc">Sự cố máy phát sinh, yêu cầu phòng ban &amp; cải tiến Kaizen</div>
+                </div>
+              </a>
+
+              <!-- 2. Dữ liệu bảo trì (với menu con: Mẫu SOP & Dashboard) -->
+              <div class="app-menu-group">
+                <a href="/maintenance" class="app-menu-item">
+                  <div class="app-menu-icon" style="background: rgba(99, 102, 241, 0.15); color: #818CF8;">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                      <polyline points="14 2 14 8 20 8"></polyline>
+                      <line x1="16" y1="13" x2="8" y2="13"></line>
+                      <line x1="16" y1="17" x2="8" y2="17"></line>
+                    </svg>
+                  </div>
+                  <div class="app-menu-text">
+                    <div class="app-menu-name-row">
+                      <span class="app-menu-name">Dữ Liệu Bảo Trì</span>
+                    </div>
+                    <div class="app-menu-desc">Nhật ký bảo dưỡng, phân công &amp; thực hiện từng máy</div>
+                  </div>
+                </a>
+                <div class="app-menu-sublinks">
+                  <a href="/categories" class="app-menu-sublink">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                      <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+                    </svg>
+                    <span>Mẫu SOP</span>
+                  </a>
+                  <a href="/dashboard" class="app-menu-sublink">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <rect x="3" y="3" width="7" height="9"></rect>
+                      <rect x="14" y="3" width="7" height="5"></rect>
+                      <rect x="14" y="12" width="7" height="9"></rect>
+                      <rect x="3" y="16" width="7" height="5"></rect>
+                    </svg>
+                    <span>Dashboard &amp; Báo Cáo</span>
+                  </a>
+                </div>
+              </div>
+
+              <!-- 3. Quản lý tồn kho -->
+              <a href="/inventory" class="app-menu-item active">
+                <div class="app-menu-icon" style="background: rgba(16, 185, 129, 0.15); color: #34D399;">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path
+                      d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z">
+                    </path>
+                    <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                    <line x1="12" y1="22.08" x2="12" y2="12"></line>
+                  </svg>
+                </div>
+                <div class="app-menu-text">
+                  <div class="app-menu-name-row">
+                    <span class="app-menu-name">Quản Lý Tồn Kho</span>
+                    <span class="app-menu-current-pill">Đang xem</span>
+                  </div>
+                  <div class="app-menu-desc">Tồn kho ERP 11 kho vật tư, phụ tùng &amp; phiếu yêu cầu xuất</div>
+                </div>
+              </a>
+
+              <!-- 4. Cấu hình hệ thống -->
+              <a href="/settings" class="app-menu-item">
+                <div class="app-menu-icon" style="background: rgba(156, 163, 175, 0.15); color: #D1D5DB;">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="3"></circle>
+                    <path
+                      d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06-.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z">
+                    </path>
+                  </svg>
+                </div>
+                <div class="app-menu-text">
+                  <div class="app-menu-name-row">
+                    <span class="app-menu-name">Cấu Hình Hệ Thống</span>
+                  </div>
+                  <div class="app-menu-desc">SMTP Email, thủ kho, thông báo &amp; tùy chỉnh chung</div>
+                </div>
+              </a>
+
+              <!-- 5. Yêu cầu bên ngoài -->
+              <a href="/request" target="_blank" class="app-menu-item">
+                <div class="app-menu-icon" style="background: rgba(59, 130, 246, 0.15); color: #60A5FA;">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="2" y1="12" x2="22" y2="12"></line>
+                    <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1 4-10z"></path>
+                  </svg>
+                </div>
+                <div class="app-menu-text">
+                  <div class="app-menu-name-row">
+                    <span class="app-menu-name">Yêu Cầu Bên Ngoài</span>
+                    <span
+                      style="font-size: 0.65rem; background: rgba(59, 130, 246, 0.2); color: #93C5FD; padding: 1px 6px; border-radius: 4px; font-weight: 700;">Public</span>
+                  </div>
+                  <div class="app-menu-desc">Gửi yêu cầu sửa chữa dành cho các phòng ban (không cần đăng nhập)</div>
+                </div>
+              </a>
+            </div>
+          </div>
+        </div>
+
+        <!-- Theme Toggle & User Profile Avatar -->
+        <div class="header-actions-group">
+          <button type="button" id="themeToggleBtn" class="theme-toggle-btn" onclick="toggleTheme(event)"
+            title="Chuyển đổi Giao diện Sáng / Tối" aria-label="Toggle Theme">
+            <svg class="icon-moon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              stroke-width="2">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+            </svg>
+            <svg class="icon-sun" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              stroke-width="2">
+              <circle cx="12" cy="12" r="5"></circle>
+              <line x1="12" y1="1" x2="12" y2="3"></line>
+              <line x1="12" y1="21" x2="12" y2="23"></line>
+              <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+              <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+              <line x1="1" y1="12" x2="3" y2="12"></line>
+              <line x1="21" y1="12" x2="23" y2="12"></line>
+              <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+              <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+            </svg>
+          </button>
+          <div id="userProfileChip" class="user-profile-chip"></div>
+        </div>
+      </div>
+
+      <!-- Main Navigation (5 Core Menus) -->
+      <nav class="main-nav">
+        <!-- 1. Công Việc Nội Bộ -->
+        <a href="/" class="nav-link">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path
+              d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z">
+            </path>
+          </svg>
+          Công Việc Nội Bộ
+        </a>
+
+        <!-- 2. Dữ Liệu Bảo Trì (Menu con: Mẫu SOP & Dashboard) -->
+        <div class="nav-dropdown">
+          <div class="nav-dropdown-split">
+            <a href="/maintenance" class="nav-link nav-link-main">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+                <line x1="16" y1="13" x2="8" y2="13"></line>
+                <line x1="16" y1="17" x2="8" y2="17"></line>
+              </svg>
+              <span>Dữ Liệu Bảo Trì</span>
+            </a>
+            <button type="button" class="nav-dropdown-arrow-btn" onclick="toggleNavDropdown(event)"
+              title="Mở danh sách menu con">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <path d="M6 9l6 6 6-6" />
+              </svg>
+            </button>
+          </div>
+          <div class="nav-dropdown-menu">
+            <a href="/maintenance" class="nav-dropdown-item">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+              </svg>
+              <div>
+                <div class="nav-dropdown-title">Dữ Liệu Bảo Trì</div>
+                <div class="nav-dropdown-desc">Nhật ký &amp; lịch thực hiện máy</div>
+              </div>
+            </a>
+            <a href="/categories" class="nav-dropdown-item">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+              </svg>
+              <div>
+                <div class="nav-dropdown-title">Mẫu SOP</div>
+                <div class="nav-dropdown-desc">Quy trình chuẩn &amp; kho ảnh mẫu</div>
+              </div>
+            </a>
+            <a href="/dashboard" class="nav-dropdown-item">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="3" width="7" height="9"></rect>
+                <rect x="14" y="3" width="7" height="5"></rect>
+                <rect x="14" y="12" width="7" height="9"></rect>
+                <rect x="3" y="16" width="7" height="5"></rect>
+              </svg>
+              <div>
+                <div class="nav-dropdown-title">Dashboard &amp; Báo Cáo</div>
+                <div class="nav-dropdown-desc">Biểu đồ tiến độ KPI &amp; dừng máy</div>
+              </div>
+            </a>
+          </div>
+        </div>
+
+        <!-- 3. Quản Lý Tồn Kho -->
+        <a href="/inventory" class="nav-link active">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path
+              d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z">
+            </path>
+            <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+            <line x1="12" y1="22.08" x2="12" y2="12"></line>
+          </svg>
+          Quản Lý Tồn Kho
+        </a>
+
+        <!-- 4. Cấu Hình Hệ Thống -->
+        <a href="/settings" class="nav-link">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path
+              d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l.06-.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z">
+            </path>
+          </svg>
+          Cấu Hình Hệ Thống
+        </a>
+
+        <!-- 5. Yêu Cầu Bên Ngoài -->
+        <a href="/request" target="_blank" class="nav-link"
+          title="Cổng gửi yêu cầu công việc dành cho các phòng ban khác (không cần đăng nhập)">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="2" y1="12" x2="22" y2="12"></line>
+            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1 4-10z"></path>
+          </svg>
+          Yêu Cầu Bên Ngoài
+        </a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="app-main-compact">
+    <!-- Unified Action & Control Toolbar -->
+    <div class="inv-action-toolbar">
+      <!-- Mode Tabs Segmented Control -->
+      <div class="inv-mode-segmented">
+        <button class="inv-segment-btn active" id="tabModeItems" onclick="switchInvMode('items')">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <path
+              d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z">
+            </path>
+            <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+            <line x1="12" y1="22.08" x2="12" y2="12"></line>
+          </svg>
+          <span>Tra Cứu Tồn Kho</span>
+          <span class="inv-tab-pill-badge" id="tabItemsBadge">0</span>
+        </button>
+        <button class="inv-segment-btn" id="tabModeRequests" onclick="switchInvMode('requests')">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+            <polyline points="14 2 14 8 20 8" />
+            <line x1="12" y1="18" x2="12" y2="12" />
+            <line x1="9" y1="15" x2="15" y2="15" />
+          </svg>
+          <span>Phiếu Xuất Kho</span>
+          <span class="inv-tab-pill-badge" id="tabRequestsBadge">0</span>
+        </button>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="inv-action-buttons">
+        <button id="btnSyncERP" class="btn-sync-erp" onclick="handleSyncERP()"
+          title="Cập nhật số liệu tồn kho mới nhất từ hệ thống ERP">
+          <svg id="syncIcon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="2.2">
+            <path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+          </svg>
+          <span>Đồng Bộ ERP</span>
+        </button>
+
+        <button class="btn-create-req" onclick="openCreateRequestModal()">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <line x1="12" y1="5" x2="12" y2="19" />
+            <line x1="5" y1="12" x2="19" y2="12" />
+          </svg>
+          <span>Tạo Yêu Cầu Xuất Kho</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- VIEW 1: ITEMS VIEW -->
+    <div id="viewItemsSection">
+      <!-- Search & Filters Toolbar -->
+      <section class="toolbar-card" style="margin-bottom: 8px; padding: 6px 8px;">
+        <!-- Search row with Mobile Toggle Filter Button (Rule 1) -->
+        <div class="inv-search-bar-row">
+          <div class="search-box">
+            <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              stroke-width="2">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <input type="text" id="invSearchInput" placeholder="Tìm theo Mã hàng, Tên vật tư, Vị trí kệ..."
+              autocomplete="off">
+            <button id="btnClearInvSearch" class="btn-clear" onclick="clearSearch()">&times;</button>
+          </div>
+
+          <!-- Nút Bộ Lọc Mobile (Rule 1) -->
+          <button type="button" class="btn-toggle-filter" id="btnToggleInvItemsFilter" onclick="toggleInvItemsFilter()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+            </svg>
+            <span>Bộ Lọc</span>
+            <span class="filter-count-badge" id="invItemsFilterBadge" style="display: none;">0</span>
+          </button>
+        </div>
+
+        <!-- Collapsible Filters Panel (Mặc định ẩn trên Mobile) -->
+        <div class="mobile-filter-panel" id="invItemsFilterPanel">
+          <!-- Warehouse Quick Filter Chips -->
+          <div class="wh-chip-list" id="warehouseChipsContainer">
+            <!-- Injected by JS -->
+          </div>
+
+          <!-- Status Segmented Control -->
+          <div class="segmented-control" style="font-size: 0.8rem;">
+            <button class="seg-btn active" data-status="all" onclick="setStatusFilter('all')">Tất Cả</button>
+            <button class="seg-btn" data-status="available" onclick="setStatusFilter('available')">Có Sẵn
+              (&gt;0)</button>
+            <button class="seg-btn" data-status="out_of_stock" onclick="setStatusFilter('out_of_stock')">Hết Hàng
+              (=0)</button>
+            <button class="seg-btn" data-status="low_stock" onclick="setStatusFilter('low_stock')">Cảnh Báo ⚠️</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Items Table (Desktop Only - Rule 2) -->
+      <div class="inv-table-wrapper inv-desktop-table">
+        <table class="inv-table">
+          <thead>
+            <tr>
+              <th style="width: 130px;">Mã Vật Tư</th>
+              <th>Tên Vật Tư / Quy Cách</th>
+              <th style="width: 100px;">Kho</th>
+              <th style="width: 110px;">Vị Trí Kệ</th>
+              <th style="width: 110px; text-align: right;">Số Lượng Tồn</th>
+              <th style="width: 80px; text-align: right;">Định Mức</th>
+              <th style="width: 110px; text-align: center;">Trạng Thái</th>
+              <th style="width: 90px; text-align: center;">Thao Tác</th>
+            </tr>
+          </thead>
+          <tbody id="inventoryTableBody">
+            <tr>
+              <td colspan="8" style="text-align: center; padding: 30px; color: var(--text-muted);">Đang tải danh sách
+                vật tư tồn kho...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Items Mobile Cards View (Mobile Only - Rule 2) -->
+      <div id="itemsMobileCards" class="items-mobile-list">
+        <div style="text-align: center; padding: 30px; color: var(--text-muted);">Đang tải danh sách vật tư tồn kho...
+        </div>
+      </div>
+
+      <!-- Pagination -->
+      <div
+        style="display: flex; justify-content: space-between; align-items: center; margin-top: 12px; padding: 4px 8px;">
+        <span style="font-size: 0.8rem; color: var(--text-secondary);" id="paginationInfo">Hiển thị 0 - 0 / 0</span>
+        <div style="display: flex; gap: 6px;">
+          <button id="btnPrevPage" class="btn-secondary" style="padding: 4px 10px; font-size: 0.8rem;"
+            onclick="changePage(-1)" disabled>Trang Trước</button>
+          <button id="btnNextPage" class="btn-secondary" style="padding: 4px 10px; font-size: 0.8rem;"
+            onclick="changePage(1)" disabled>Trang Sau</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- VIEW 2: REQUESTS VIEW -->
+    <div id="viewRequestsSection" style="display: none;">
+      <!-- Sub-Toolbar: Chế độ xem & Bộ lọc Trạng thái Tạo Phiếu & Nút Xuất Excel -->
+      <div class="requests-sub-toolbar">
+        <!-- Top row: Sub-Mode Segmented Control + Nút Bộ Lọc Mobile (Rule 1) -->
+        <div class="requests-sub-mode-row">
+          <div class="segmented-control sub-mode-segmented" style="flex: 1;">
+            <button class="seg-btn active" id="subModeByRequest" onclick="switchRequestsSubMode('by_request')">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                <polyline points="14 2 14 8 20 8" />
+                <line x1="12" y1="18" x2="12" y2="12" />
+                <line x1="9" y1="15" x2="15" y2="15" />
+              </svg>
+              <span>Theo Phiếu</span>
+              <span class="sub-badge" id="subReqBadge">0</span>
+            </button>
+            <button class="seg-btn" id="subModeAllItems" onclick="switchRequestsSubMode('all_items')">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="3" width="7" height="7"></rect>
+                <rect x="14" y="3" width="7" height="7"></rect>
+                <rect x="14" y="14" width="7" height="7"></rect>
+                <rect x="3" y="14" width="7" height="7"></rect>
+              </svg>
+              <span>Vật Tư Cần Xuất</span>
+              <span class="sub-badge" id="subItemsBadge">0</span>
+            </button>
+          </div>
+
+          <!-- Nút Bộ Lọc Mobile (Rule 1) -->
+          <button type="button" class="btn-toggle-filter" id="btnToggleInvReqFilter" onclick="toggleInvReqFilter()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+            </svg>
+            <span>Bộ Lọc</span>
+            <span class="filter-count-badge" id="invReqFilterBadge" style="display: none;">0</span>
+          </button>
+        </div>
+
+        <!-- Collapsible Filters & Action Group (Mặc định ẩn trên Mobile) -->
+        <div class="mobile-filter-panel" id="invRequestsFilterPanel">
+          <!-- Voucher Filter: Mặc định lọc Chưa Tạo Phiếu -->
+          <div class="segmented-control voucher-filter-segmented">
+            <button class="seg-btn active" id="vFilterUnassigned" onclick="setVoucherFilter('unassigned')"
+              title="Chỉ hiển thị các vật tư chưa được gán mã đơn ERP">
+              <span>⏳ Chưa Tạo Phiếu</span>
+            </button>
+            <button class="seg-btn" id="vFilterAssigned" onclick="setVoucherFilter('assigned')"
+              title="Các vật tư đã được tạo phiếu và gán mã đơn ERP">
+              <span>✅ Đã Tạo Phiếu</span>
+            </button>
+            <button class="seg-btn" id="vFilterAll" onclick="setVoucherFilter('all')" title="Tất cả">
+              <span>📂 Tất Cả</span>
+            </button>
+          </div>
+
+          <!-- Receipt Filter: Lọc Chưa Nhận / Đã Nhận để xuất Excel hoặc kiểm tra -->
+          <div class="segmented-control receipt-filter-segmented" id="receiptFilterGroup">
+            <button class="seg-btn active" id="rFilterAll" onclick="setReceiptFilter('all')"
+              title="Tất cả trạng thái nhận hàng">
+              <span>Tất Cả Hàng</span>
+            </button>
+            <button class="seg-btn" id="rFilterUnreceived" onclick="setReceiptFilter('unreceived')"
+              title="Vật tư chưa tick nhận hàng">
+              <span>⏳ Chưa Nhận</span>
+            </button>
+            <button class="seg-btn" id="rFilterReceived" onclick="setReceiptFilter('received')"
+              title="Vật tư đã tick nhận hàng (kèm ảnh bằng chứng)">
+              <span>📦 Đã Nhận</span>
+            </button>
+          </div>
+
+          <!-- Action Buttons: Xuất Excel Mẫu, Gán Mã Đơn -->
+          <div class="requests-action-group">
+            <button class="btn-export-excel" id="btnExportExcel" onclick="exportSelectedIssueItemsToExcel()"
+              title="Xuất file Excel mẫu sheet IM_tmpRequest2 cho các mục đã chọn">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="7 10 12 15 17 10" />
+                <line x1="12" y1="15" x2="12" y2="3" />
+              </svg>
+              <span>Xuất Excel Mẫu</span>
+              <span class="badge-select-count" id="badgeSelectedCount" style="display: none;">0</span>
+            </button>
+            <button class="btn-secondary btn-assign-voucher" id="btnOpenAssignVoucher"
+              onclick="openAssignVoucherModal()" title="Nhập mã đơn ERP và gán cho các vật tư đang chọn">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path>
+                <line x1="7" y1="7" x2="7.01" y2="7"></line>
+              </svg>
+              <span>Gán Mã Đơn</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- SUB-VIEW 1: THEO PHIẾU YÊU CẦU (Bảng cha & Card mobile) -->
+      <div id="subViewByRequest">
+        <div class="inv-table-wrapper">
+          <table class="inv-table">
+            <thead>
+              <tr>
+                <th style="width: 36px; text-align: center;"><input type="checkbox" class="inv-check"
+                    id="chkSelectAllRequests" onchange="toggleSelectAllRequests(this.checked)"></th>
+                <th style="width: 130px;">Mã Phiếu</th>
+                <th style="width: 95px;">Ngày Tạo</th>
+                <th style="width: 140px;">Người Yêu Cầu</th>
+                <th style="width: 80px;">Kho Xuất</th>
+                <th>Mục Đích / Máy Sử Dụng</th>
+                <th style="width: 90px; text-align: center;">Số Vật Tư</th>
+                <th style="width: 110px; text-align: center;">Trạng Thái</th>
+                <th style="width: 130px; text-align: center;">Hành Động</th>
+              </tr>
+            </thead>
+            <tbody id="requestsTableBody">
+              <tr>
+                <td colspan="9" style="text-align: center; padding: 30px; color: var(--text-muted);">Chưa có phiếu yêu
+                  cầu xuất kho nào.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Mobile Cards List View (App Style) -->
+        <div id="requestsMobileCards" class="requests-mobile-list">
+          <div style="text-align: center; padding: 30px; color: var(--text-muted);">Đang tải danh sách phiếu...</div>
+        </div>
+      </div>
+
+      <!-- SUB-VIEW 2: TẤT CẢ VẬT TƯ CẦN XUẤT (Bảng chi tiết từng dòng) -->
+      <div id="subViewAllItems" style="display: none;">
+        <div class="inv-table-wrapper">
+          <table class="inv-table">
+            <thead>
+              <tr>
+                <th style="width: 36px; text-align: center;"><input type="checkbox" class="inv-check"
+                    id="chkSelectAllIssueItems" onchange="toggleSelectAllIssueItems(this.checked)"></th>
+                <th style="width: 110px;">Mã Vật Tư</th>
+                <th>Tên Vật Tư / Quy Cách</th>
+                <th style="width: 70px; text-align: center;">Kho</th>
+                <th style="width: 90px; text-align: right;">SL Cần Xuất</th>
+                <th>Mục Đích / Ghi Chú</th>
+                <th style="width: 130px;">Phiếu Yêu Cầu</th>
+                <th style="width: 110px; text-align: center;">Mã Đơn ERP</th>
+                <th style="width: 125px; text-align: center;">Nhận Hàng</th>
+                <th style="width: 80px; text-align: center;">Thao Tác</th>
+              </tr>
+            </thead>
+            <tbody id="allIssueItemsTableBody">
+              <tr>
+                <td colspan="9" style="text-align: center; padding: 30px; color: var(--text-muted);">Đang tải danh sách
+                  vật tư cần xuất...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Mobile Cards for All Items -->
+        <div id="allIssueItemsMobileCards" class="requests-mobile-list">
+          <div style="text-align: center; padding: 30px; color: var(--text-muted);">Đang tải danh sách vật tư...</div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Modal / Mobile Fullscreen: Tạo Phiếu Yêu Cầu Xuất Kho -->
+  <div class="inv-modal-overlay" id="createRequestModal">
+    <div class="inv-modal-content">
+      <div class="inv-modal-header"
+        style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+        <button type="button" class="btn-modal-back" onclick="closeCreateRequestModal()"
+          title="Quay lại danh sách phiếu">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <polyline points="15 18 9 12 15 6"></polyline>
+          </svg>
+          <span class="back-text">Quay lại</span>
+        </button>
+        <div class="inv-modal-title"
+          style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 1.05rem; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 8px; flex: 1; min-width: 0; text-align: center;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+            style="color: var(--accent-primary); flex-shrink: 0;">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+            <polyline points="14 2 14 8 20 8" />
+            <line x1="12" y1="18" x2="12" y2="12" />
+            <line x1="9" y1="15" x2="15" y2="15" />
+          </svg>
+          <span>Tạo Phiếu Xuất Kho</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 6px; flex-shrink: 0;">
+          <button type="submit" form="formCreateRequest" class="btn-primary btn-header-save" id="btnHeaderSaveRequest"
+            title="Lưu và gửi phiếu yêu cầu xuất kho">
+            💾 Lưu Phiếu
+          </button>
+          <button type="button" class="btn-clear desktop-only-close" onclick="closeCreateRequestModal()" title="Đóng"
+            style="font-size: 1.5rem; line-height: 1; padding: 2px 6px; cursor: pointer; color: var(--text-muted);">&times;</button>
+        </div>
+      </div>
+
+      <form id="formCreateRequest" autocomplete="off" onsubmit="submitCreateRequest(event)">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+          <div class="form-group">
+            <label class="form-label">Người Yêu Cầu *</label>
+            <input type="text" id="reqRequester" class="form-input" required placeholder="Họ và tên KTV"
+              autocomplete="off">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Phòng Ban</label>
+            <input type="text" id="reqDepartment" class="form-input" value="PHÒNG KỸ THUẬT" autocomplete="off">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Nội dung xuất *</label>
+          <textarea id="reqPurpose" name="request_purpose_content" class="form-input" rows="2" required
+            placeholder="Ví dụ: Thay thế bạc đạn máy chia, sửa chữa kẹp cuộn, bảo dưỡng định kỳ..." autocomplete="off"
+            autocorrect="off" autocapitalize="sentences" spellcheck="false" data-lpignore="true" data-form-type="other"
+            style="min-height: 48px; height: 50px; resize: vertical; padding: 8px 12px; line-height: 1.4; font-family: inherit; font-size: 0.88rem;"></textarea>
+        </div>
+
+        <!-- Danh sách vật tư & Ô Tìm Kiếm Nhanh -->
+        <div class="form-group" style="margin-top: 16px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <label class="form-label"
+              style="margin-bottom: 0; font-size: 0.85rem; color: var(--accent-primary); font-weight: 700;">
+              Danh Sách Vật Tư Cần Xuất *
+            </label>
+            <button type="button" class="btn-secondary" style="font-size: 0.75rem; padding: 4px 10px;"
+              onclick="addManualRequestItemRow()">
+              + Thêm Dòng Thủ Công
+            </button>
+          </div>
+
+          <!-- Tìm kiếm vật tư trực tiếp trong kho ERP -->
+          <div style="position: relative; margin-bottom: 12px;">
+            <div style="position: relative;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                style="position: absolute; left: 12px; top: 12px; color: var(--text-muted); pointer-events: none;">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+              </svg>
+              <input type="text" id="reqItemSearchInput" class="form-input"
+                style="padding-left: 38px; height: 40px; font-size: 0.88rem;"
+                placeholder="🔍 Gõ Mã vật tư (10CK..., PT...) hoặc Tên vật tư để tìm và chọn nhanh..."
+                autocomplete="off">
+            </div>
+            <!-- Dropdown danh sách kết quả tìm kiếm -->
+            <div id="reqItemSearchResults" class="req-search-results-dropdown" style="display: none;"></div>
+          </div>
+
+          <!-- Container danh sách vật tư: Desktop dạng bảng List & Mobile dạng Thẻ 3 hàng -->
+          <div class="req-items-table-wrapper">
+            <div class="req-table-header">
+              <span>Vật Tư (Mã / Tên)</span>
+              <span>Kho / Kệ</span>
+              <span style="text-align: right;">Tồn</span>
+              <span style="text-align: right;">SL Xuất *</span>
+              <span style="text-align: center;">ĐVT</span>
+              <span>Mục Đích Riêng</span>
+              <span style="text-align: center;">Xóa</span>
+            </div>
+            <div id="requestItemsContainer" class="req-items-container">
+              <!-- Dynamic item rows / cards -->
+            </div>
+          </div>
+        </div>
+
+        <div class="form-group" style="margin-top: 14px;">
+          <label class="form-label">Ghi Chú Thêm</label>
+          <textarea id="reqNotes" class="form-textarea" rows="2" placeholder="Ghi chú chi tiết cho thủ kho..."
+            autocomplete="off"></textarea>
+        </div>
+
+        <div
+          style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; border-top: 1px solid var(--border-subtle); padding-top: 14px; margin-bottom: 30px;">
+          <button type="button" class="btn-secondary" style="padding: 10px 18px; font-weight: 600;"
+            onclick="closeCreateRequestModal()">Hủy Bỏ</button>
+          <button type="submit" class="btn-create-req" style="padding: 10px 24px; font-size: 0.88rem; font-weight: 700;"
+            id="btnSubmitRequest">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+            <span>Gửi Yêu Cầu Xuất Kho</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal / Mobile Fullscreen: Chi Tiết Phiếu Yêu Cầu Xuất Kho -->
+  <div class="inv-modal-overlay" id="requestDetailModal">
+    <div class="inv-modal-content" style="width: min(1560px, 97vw); max-width: 1560px;">
+      <div class="inv-modal-header"
+        style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+        <button type="button" class="btn-modal-back" onclick="closeRequestDetailModal()">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <polyline points="15 18 9 12 15 6"></polyline>
+          </svg>
+          <span class="back-text">Quay lại</span>
+        </button>
+        <div class="inv-modal-title"
+          style="display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 1.05rem; font-weight: 700; flex: 1; min-width: 0; text-align: center;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+            style="color: var(--accent-primary); flex-shrink: 0;">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+            <polyline points="14 2 14 8 20 8"></polyline>
+            <line x1="16" y1="13" x2="8" y2="13"></line>
+            <line x1="16" y1="17" x2="8" y2="17"></line>
+          </svg>
+          <span style="font-size: 1.05rem; font-weight: 700; white-space: nowrap;">Chi Tiết Phiếu Xuất</span>
+        </div>
+        <div style="display: flex; align-items: center; justify-content: flex-end; min-width: 75px; gap: 6px;"
+          id="reqDetailHeaderActionSlot">
+          <button type="button" class="btn-clear desktop-only-close" onclick="closeRequestDetailModal()"
+            style="font-size: 1.5rem; line-height: 1; padding: 2px 6px; cursor: pointer; color: var(--text-muted);">&times;</button>
+        </div>
+      </div>
+
+      <div class="inv-modal-body" style="padding: 0 4px;">
+        <!-- Top Info Header: Code + Status Badge Banner -->
+        <div class="req-detail-hero-banner">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <span class="item-id-badge" id="reqDetailCode"
+              style="font-family: var(--font-mono); font-size: 1.15rem; font-weight: 800; color: #60A5FA; background: rgba(96,165,250,0.15); border: 1px solid rgba(96,165,250,0.35); border-radius: 6px; padding: 3px 12px; letter-spacing: 0.5px; white-space: nowrap;">REQ-xxxx</span>
+            <button type="button" class="btn-clear" onclick="copyReqCode()" title="Sao chép mã phiếu"
+              style="padding: 2px 6px; font-size: 0.9rem; color: #94A3B8; cursor: pointer;">📋</button>
+          </div>
+          <div id="reqDetailStatusBadge"></div>
+        </div>
+
+        <!-- Top Info: 2-column on desktop to maximize horizontal space -->
+        <div class="req-detail-top-grid">
+          <!-- Left: Purpose, Machine & Notes -->
+          <div style="display: flex; flex-direction: column; gap: 10px;">
+            <div
+              style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 12px 14px; flex: 1;">
+              <div
+                style="font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; margin-bottom: 4px; letter-spacing: 0.3px;">
+                Mục Đích Xuất Sử Dụng:</div>
+              <div id="reqDetailPurpose"
+                style="font-size: 1.05rem; font-weight: 700; color: #F3F4F6; line-height: 1.4;">---</div>
+              <div id="reqDetailMachineBadge" style="margin-top: 6px;"></div>
+            </div>
+
+            <!-- Notes if any -->
+            <div id="reqDetailNotesBox"
+              style="display: none; background: rgba(17, 24, 39, 0.6); padding: 8px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle); font-size: 0.8rem; color: var(--text-secondary);">
+              <strong>Ghi chú:</strong> <span id="reqDetailNotes"></span>
+            </div>
+          </div>
+
+          <!-- Right: Meta Grid & Action Bar -->
+          <div style="display: flex; flex-direction: column; gap: 10px;">
+            <!-- Meta Grid -->
+            <div
+              style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; background: rgba(0,0,0,0.25); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 10px 12px; flex: 1;">
+              <div>
+                <div style="font-size: 0.68rem; color: var(--text-muted); text-transform: uppercase;">Người Yêu Cầu:
+                </div>
+                <div id="reqDetailRequester"
+                  style="font-size: 0.84rem; font-weight: 600; color: #E5E7EB; margin-top: 2px;">-</div>
+              </div>
+              <div>
+                <div style="font-size: 0.68rem; color: var(--text-muted); text-transform: uppercase;">Phòng Ban:</div>
+                <div id="reqDetailDept" style="font-size: 0.84rem; font-weight: 600; color: #E5E7EB; margin-top: 2px;">-
+                </div>
+              </div>
+              <div>
+                <div style="font-size: 0.68rem; color: var(--text-muted); text-transform: uppercase;">Kho Xuất:</div>
+                <div id="reqDetailWarehouse"
+                  style="font-size: 0.84rem; font-weight: 700; color: #818CF8; margin-top: 2px;">-</div>
+              </div>
+              <div>
+                <div style="font-size: 0.68rem; color: var(--text-muted); text-transform: uppercase;">Ngày Lập Phiếu:
+                </div>
+                <div id="reqDetailDate"
+                  style="font-size: 0.84rem; font-weight: 600; color: #E5E7EB; font-family: var(--font-mono); margin-top: 2px;">
+                  -</div>
+              </div>
+            </div>
+
+            <!-- Action Bar: Approval & Issue -->
+            <div id="reqDetailActionBar"
+              style="background: rgba(99, 102, 241, 0.08); border: 1px solid rgba(99, 102, 241, 0.25); border-radius: var(--radius-sm); padding: 8px 12px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+              <span style="font-size: 0.8rem; font-weight: 700; color: #C7D2FE;">Thao tác phiếu:</span>
+              <div id="reqDetailActionButtons" style="display: flex; gap: 8px; flex-wrap: wrap;"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Items Section -->
+        <div style="margin-bottom: 20px;">
+          <div
+            style="font-size: 0.88rem; font-weight: 700; color: #93C5FD; margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between;">
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path
+                  d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z">
+                </path>
+                <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                <line x1="12" y1="22.08" x2="12" y2="12"></line>
+              </svg>
+              <span>Danh Sách Vật Tư Xuất Cấp Phát</span>
+            </div>
+            <span id="reqDetailItemCountBadge"
+              style="font-size: 0.75rem; background: rgba(99, 102, 241, 0.18); color: #C7D2FE; padding: 2px 10px; border-radius: 9999px; border: 1px solid rgba(99, 102, 241, 0.3); font-weight: 600;">0
+              vật tư</span>
+          </div>
+
+          <!-- Desktop Table (ẩn trên mobile <= 768px) -->
+          <div class="req-detail-desktop-table inv-table-wrapper"
+            style="border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); overflow-x: auto;">
+            <table class="inv-table" style="margin-bottom: 0; width: 100%;">
+              <thead>
+                <tr>
+                  <th style="width: 130px; white-space: nowrap;">Mã Vật Tư</th>
+                  <th style="min-width: 240px;">Tên Vật Tư / Quy Cách</th>
+                  <th style="width: 110px; white-space: nowrap;">Kho / Kệ</th>
+                  <th style="width: 95px; text-align: right; white-space: nowrap;">SL Xuất</th>
+                  <th style="width: 70px; text-align: center; white-space: nowrap;">ĐVT</th>
+                  <th style="min-width: 150px;">Mục Đích / Ghi Chú</th>
+                  <th style="width: 185px; text-align: center; white-space: nowrap;">Trạng Thái / Thao Tác</th>
+                </tr>
+              </thead>
+              <tbody id="reqDetailItemsTableBody">
+                <!-- Injected dynamically -->
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Mobile Cards View (ẩn trên desktop >= 769px) -->
+          <div class="req-detail-mobile-cards" id="reqDetailItemsMobileCards"
+            style="flex-direction: column; gap: 10px;">
+            <!-- Injected dynamically -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Mobile Sticky Bottom Action Bar -->
+      <div class="mobile-app-bottom-bar"
+        style="padding: 10px 16px; background: rgba(15, 23, 42, 0.95); border-top: 1px solid rgba(255, 255, 255, 0.08);">
+        <button type="button" class="btn-secondary"
+          style="width: 100%; height: 42px; font-size: 0.88rem; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 8px; border-radius: 8px;"
+          onclick="closeRequestDetailModal()">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <polyline points="15 18 9 12 15 6"></polyline>
+          </svg>
+          <span>Quay Lại Danh Sách Phiếu</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Gán / Nhập Mã Đơn Xuất Kho ERP -->
+  <div class="inv-modal-overlay" id="assignVoucherModal">
+    <div class="inv-modal-content" style="max-width: 500px;">
+      <div class="inv-modal-header"
+        style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+        <button type="button" class="btn-modal-back" onclick="closeAssignVoucherModal()">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <polyline points="15 18 9 12 15 6"></polyline>
+          </svg>
+          <span class="back-text">Quay lại</span>
+        </button>
+        <div class="inv-modal-title"
+          style="display: flex; align-items: center; justify-content: center; gap: 8px; flex: 1; min-width: 0; text-align: center;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            style="color: var(--accent-primary); flex-shrink: 0;">
+            <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path>
+            <line x1="7" y1="7" x2="7.01" y2="7"></line>
+          </svg>
+          <span
+            style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 1.05rem; font-weight: 700;">Gán
+            Mã Đơn Xuất Kho ERP</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 6px; flex-shrink: 0;">
+          <button type="button" class="btn-primary btn-header-save" id="btnHeaderSaveVoucher"
+            onclick="submitAssignVoucher()" title="Lưu mã đơn ERP">
+            💾 Lưu
+          </button>
+          <button type="button" class="btn-clear desktop-only-close"
+            onclick="closeAssignVoucherModal()">&times;</button>
+        </div>
+      </div>
+
+      <div class="inv-modal-body" style="padding: 10px 12px;">
+        <div style="margin-bottom: 14px; font-size: 0.82rem; color: var(--text-secondary); line-height: 1.5;"
+          id="assignVoucherSummary">
+          Nhập mã đơn / số phiếu xuất trên phần mềm ERP để đánh dấu các vật tư đã tạo phiếu.
+        </div>
+
+        <div class="form-group" style="margin-bottom: 14px;">
+          <label class="form-label" style="font-weight: 700; color: #93C5FD;">Mã Đơn / Số Phiếu Xuất ERP *</label>
+          <input type="text" id="voucherCodeInput" class="form-input"
+            style="font-family: var(--font-mono); font-size: 0.95rem; font-weight: 600; letter-spacing: 0.5px; height: 40px; text-transform: uppercase;"
+            placeholder="Ví dụ: XK-2609-001, PXK0123..." autocomplete="off">
+          <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 5px;">
+            💡 Sau khi lưu, các vật tư này sẽ được đánh dấu <strong>Đã Tạo Phiếu</strong> và tự động ẩn khỏi danh sách
+            chờ
+            xuất.
+          </div>
+        </div>
+
+        <!-- Preview danh sách mã vật tư được gán -->
+        <div
+          style="margin-bottom: 16px; background: rgba(0,0,0,0.3); border: 1px solid var(--border-subtle); border-radius: 6px; padding: 8px 10px;">
+          <div style="font-size: 0.72rem; color: #9CA3AF; margin-bottom: 6px; font-weight: 600;"
+            id="assignVoucherItemCount">0 vật tư được chọn</div>
+          <div id="assignVoucherItemTags"
+            style="display: flex; flex-wrap: wrap; gap: 4px; max-height: 100px; overflow-y: auto;"></div>
+        </div>
+
+        <div
+          style="display: flex; justify-content: flex-end; gap: 8px; border-top: 1px solid var(--border-subtle); padding-top: 14px;">
+          <button type="button" class="btn-secondary" style="padding: 8px 16px; font-size: 0.8rem;"
+            onclick="closeAssignVoucherModal()">Bỏ Qua / Nhập Sau</button>
+          <button type="button" class="btn-primary btn-header-save" id="btnSubmitVoucher"
+            style="padding: 8px 18px; font-size: 0.82rem; font-weight: 600;" onclick="submitAssignVoucher()">
+            💾 Lưu &amp; Đánh Dấu
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Xác Nhận Nhận Hàng & Chụp Ảnh Bằng Chứng -->
+  <div class="inv-modal-overlay" id="receiveItemModal">
+    <div class="inv-modal-content" style="max-width: 480px;">
+      <div class="inv-modal-header"
+        style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+        <button type="button" class="btn-modal-back" onclick="closeReceiveItemModal()">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <polyline points="15 18 9 12 15 6"></polyline>
+          </svg>
+          <span class="back-text">Quay lại</span>
+        </button>
+        <div class="inv-modal-title"
+          style="display: flex; align-items: center; justify-content: center; gap: 8px; flex: 1; min-width: 0; text-align: center;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            style="color: var(--accent-primary); flex-shrink: 0;">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+            <polyline points="22 4 12 14.01 9 11.01"></polyline>
+          </svg>
+          <span
+            style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 1.05rem; font-weight: 700;">Xác
+            Nhận Đã Nhận Vật Tư</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 6px; flex-shrink: 0;">
+          <button type="submit" form="formReceiveItem" class="btn-primary btn-header-save" id="btnHeaderSaveReceive"
+            style="background: #10B981 !important; border: 1px solid #34D399 !important;" title="Xác nhận nhận hàng">
+            ✅ Nhận
+          </button>
+          <button type="button" class="btn-clear desktop-only-close" onclick="closeReceiveItemModal()">&times;</button>
+        </div>
+      </div>
+
+      <div
+        style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 10px 12px; margin-bottom: 14px;">
+        <div style="font-weight: 700; color: #818CF8; font-size: 0.85rem;" id="rcvItemCode">VT-XXXX</div>
+        <div style="font-size: 0.82rem; color: #F3F4F6; margin-top: 2px;" id="rcvItemName">Tên vật tư</div>
+        <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;" id="rcvItemQty">Số lượng: 1 Cái
+        </div>
+      </div>
+
+      <form id="formReceiveItem" onsubmit="submitReceiveItem(event)">
+        <input type="hidden" id="rcvItemId" value="">
+
+        <div class="form-group" style="margin-bottom: 12px;">
+          <label class="form-label">Người Nhận Hàng *</label>
+          <input type="text" id="rcvReceiverName" class="form-input" required
+            placeholder="Họ và tên người nhận trực tiếp">
+        </div>
+
+        <div class="form-group" style="margin-bottom: 14px;">
+          <label class="form-label" style="display: flex; justify-content: space-between;">
+            <span>Ảnh Chụp Bằng Chứng Nhận Hàng</span>
+            <span style="font-size: 0.72rem; color: #A5B4FC;">(Chụp camera / Chọn ảnh)</span>
+          </label>
+          <div style="display: flex; gap: 8px; align-items: center;">
+            <label for="rcvPhotoInput" class="btn-secondary"
+              style="cursor: pointer; display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; font-size: 0.82rem;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+                <circle cx="12" cy="13" r="4"></circle>
+              </svg>
+              <span>Chụp / Tải Ảnh Lên</span>
+            </label>
+            <input type="file" id="rcvPhotoInput" accept="image/*" capture="environment" style="display: none;"
+              onchange="handleReceivePhotoSelected(this)">
+            <span id="rcvPhotoFileName"
+              style="font-size: 0.75rem; color: var(--text-muted); text-overflow: ellipsis; overflow: hidden; white-space: nowrap; max-width: 200px;">Chưa
+              chọn ảnh</span>
+          </div>
+
+          <!-- Preview ảnh đã chọn hoặc ảnh hiện có -->
+          <div id="rcvPhotoPreviewBox"
+            style="display: none; margin-top: 10px; text-align: center; background: rgba(0,0,0,0.3); padding: 8px; border-radius: 6px; border: 1px dashed var(--border-subtle);">
+            <img id="rcvPhotoPreviewImg" src=""
+              style="max-height: 180px; max-width: 100%; border-radius: 4px; object-fit: contain;">
+          </div>
+        </div>
+
+        <div
+          style="display: flex; justify-content: flex-end; gap: 8px; border-top: 1px solid var(--border-subtle); padding-top: 14px;">
+          <button type="button" class="btn-secondary" style="padding: 8px 16px; font-size: 0.82rem;"
+            onclick="closeReceiveItemModal()">Hủy</button>
+          <button type="submit" class="btn-primary" id="btnSubmitReceiveItem"
+            style="padding: 8px 20px; font-size: 0.84rem; font-weight: 700;">
+            ✅ Xác Nhận Đã Nhận
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Xem Ảnh Nhận Hàng -->
+  <div class="inv-modal-overlay" id="photoPreviewModal" onclick="if(event.target===this) closePhotoPreviewModal()">
+    <div class="inv-modal-content" style="max-width: 600px; text-align: center;">
+      <div class="inv-modal-header">
+        <div class="inv-modal-title" id="photoPreviewTitle">Ảnh Bằng Chứng Nhận Hàng</div>
+        <button class="btn-clear" onclick="closePhotoPreviewModal()">&times;</button>
+      </div>
+      <div style="padding: 12px 0;">
+        <img id="photoPreviewImg" src=""
+          style="max-width: 100%; max-height: 70vh; border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.5);">
+      </div>
+      <div id="photoPreviewMeta" style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 8px;"></div>
+    </div>
+  </div>
+
+
+  <script src="/static/xlsx.full.min.js"></script>
+  <script src="/static/realtime.js?v=20260922_1250"></script>
+  <script src="/static/brand-menu.js?v=20260921_0800"></script>
+  <script src="/static/inventory.js?v=20260921_0800"></script>
+</body>
+
+</html>

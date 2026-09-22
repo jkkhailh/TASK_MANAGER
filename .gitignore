@@ -1,0 +1,37 @@
+# Virtual Environment
+venv/
+env/
+ENV/
+.venv/
+
+# Python Cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+
+# SQLite Databases & Local Storage
+*.db
+*.sqlite
+*.sqlite3
+local_maintenance.db
+
+# Environment Variables & Secrets
+.env
+*.env.local
+
+# IDE & Editor Configs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Uploads & Media Caches
+static/uploads/
+uploads/
+nas_cache/
+
+# Logs & Temporary files
+*.log
+scratch/

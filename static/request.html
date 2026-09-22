@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Cổng Tiếp Nhận Yêu Cầu Kỹ Thuật | BOPP EM Maintenance</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css">
+  <style>
+    :root {
+      --primary: #3B82F6;
+      --primary-hover: #2563EB;
+      --primary-light: rgba(59, 130, 246, 0.12);
+      --success: #10B981;
+      --warning: #F59E0B;
+      --danger: #EF4444;
+      --bg-body: #0B0F19;
+      --bg-card: #131B2B;
+      --bg-card-hover: #1A2438;
+      --border-color: rgba(255, 255, 255, 0.08);
+      --border-focus: rgba(99, 102, 241, 0.6);
+      --text-main: #F8FAFC;
+      --text-muted: #94A3B8;
+    }
+
+    body {
+      background-color: var(--bg-body);
+      color: var(--text-main);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Top Navigation Header */
+    .portal-header {
+      background: rgba(15, 23, 42, 0.95);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border-color);
+      padding: 14px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+    }
+
+    .portal-logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+      color: inherit;
+    }
+
+    .portal-logo-icon {
+      width: 40px;
+      height: 40px;
+      background: linear-gradient(135deg, #3B82F6, #8B5CF6);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      box-shadow: 0 4px 14px rgba(59, 130, 246, 0.4);
+    }
+
+    .portal-logo-text h1 {
+      font-size: 1.05rem;
+      font-weight: 800;
+      margin: 0;
+      letter-spacing: 0.5px;
+      background: linear-gradient(135deg, #FFFFFF 30%, #93C5FD 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .portal-logo-text p {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      margin: 2px 0 0 0;
+      font-weight: 500;
+    }
+
+    .portal-nav-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .btn-portal-login {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid var(--border-color);
+      color: #93C5FD;
+      padding: 7px 14px;
+      border-radius: 8px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      text-decoration: none;
+      transition: all 0.2s;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .btn-portal-login:hover {
+      background: rgba(59, 130, 246, 0.15);
+      border-color: rgba(59, 130, 246, 0.4);
+      color: #FFFFFF;
+    }
+
+    /* Main Container */
+    .portal-container {
+      max-width: 920px;
+      margin: 24px auto 40px auto;
+      padding: 0 16px;
+      width: 100%;
+      box-sizing: border-box;
+      flex: 1;
+    }
+
+    /* Tabs Navigation */
+    .portal-tabs {
+      display: flex;
+      gap: 8px;
+      background: rgba(15, 23, 42, 0.6);
+      padding: 6px;
+      border-radius: 12px;
+      border: 1px solid var(--border-color);
+      margin-bottom: 24px;
+    }
+
+    .portal-tab-btn {
+      flex: 1;
+      padding: 10px 16px;
+      background: transparent;
+      border: none;
+      border-radius: 8px;
+      color: var(--text-muted);
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: all 0.2s;
+    }
+
+    .portal-tab-btn.active {
+      background: #3B82F6;
+      color: #FFFFFF;
+      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.35);
+    }
+
+    .portal-tab-btn:hover:not(.active) {
+      color: #FFFFFF;
+      background: rgba(255, 255, 255, 0.04);
+    }
+
+    /* Card Panels */
+    .portal-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 24px;
+      box-shadow: 0 12px 36px rgba(0, 0, 0, 0.4);
+    }
+
+    .card-title-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 14px;
+      margin-bottom: 20px;
+    }
+
+    .card-title-icon {
+      font-size: 22px;
+    }
+
+    .card-title-text h2 {
+      font-size: 1.15rem;
+      font-weight: 700;
+      margin: 0;
+      color: #FFFFFF;
+    }
+
+    .card-title-text p {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      margin: 3px 0 0 0;
+    }
+
+    /* Section Divider */
+    .form-section-title {
+      font-size: 0.8rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #60A5FA;
+      margin: 20px 0 12px 0;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* Form Fields */
+    .form-row-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+
+    @media (max-width: 640px) {
+      .form-row-2 {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .portal-input-group {
+      margin-bottom: 14px;
+    }
+
+    .portal-label {
+      display: block;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: #E2E8F0;
+      margin-bottom: 6px;
+    }
+
+    .portal-label .req {
+      color: var(--danger);
+      margin-left: 2px;
+    }
+
+    .portal-label .hint {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      font-weight: 400;
+      margin-left: 4px;
+    }
+
+    .portal-input,
+    .portal-select,
+    .portal-textarea {
+      width: 100%;
+      background: rgba(17, 24, 39, 0.8);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 10px 14px;
+      color: #F8FAFC;
+      font-size: 0.9rem;
+      font-family: inherit;
+      box-sizing: border-box;
+      transition: all 0.2s;
+    }
+
+    .portal-input:focus,
+    .portal-select:focus,
+    .portal-textarea:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+      background: rgba(17, 24, 39, 0.95);
+    }
+
+    .portal-textarea {
+      resize: vertical;
+      min-height: 80px;
+    }
+
+    /* Email highlight box */
+    .email-highlight-box {
+      background: rgba(59, 130, 246, 0.08);
+      border: 1px solid rgba(59, 130, 246, 0.3);
+      border-radius: 8px;
+      padding: 10px 14px;
+      margin-bottom: 14px;
+      font-size: 0.8rem;
+      color: #93C5FD;
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      line-height: 1.4;
+    }
+
+    /* Checklist Section */
+    .checklist-container {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 14px;
+      margin-bottom: 16px;
+    }
+
+    .checklist-item-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .checklist-item-row:last-child {
+      margin-bottom: 0;
+    }
+
+    .btn-add-item {
+      background: rgba(59, 130, 246, 0.1);
+      border: 1px dashed rgba(59, 130, 246, 0.4);
+      color: #93C5FD;
+      padding: 8px 14px;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      width: 100%;
+      margin-top: 8px;
+      transition: all 0.2s;
+    }
+
+    .btn-add-item:hover {
+      background: rgba(59, 130, 246, 0.2);
+      border-color: #3B82F6;
+      color: #FFFFFF;
+    }
+
+    /* Photo Upload Area */
+    .photo-upload-box {
+      border: 2px dashed rgba(99, 102, 241, 0.35);
+      background: rgba(99, 102, 241, 0.04);
+      border-radius: 12px;
+      padding: 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      margin-bottom: 14px;
+    }
+
+    .photo-upload-box:hover {
+      border-color: #6366F1;
+      background: rgba(99, 102, 241, 0.08);
+    }
+
+    .photo-preview-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .photo-thumb-card {
+      position: relative;
+      border-radius: 8px;
+      overflow: hidden;
+      aspect-ratio: 1/1;
+      border: 1px solid var(--border-color);
+      background: #000;
+    }
+
+    .photo-thumb-card img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .btn-remove-photo {
+      position: absolute;
+      top: 4px;
+      right: 4px;
+      background: rgba(239, 68, 68, 0.9);
+      color: white;
+      border: none;
+      border-radius: 50%;
+      width: 22px;
+      height: 22px;
+      font-size: 11px;
+      font-weight: bold;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Submit Button */
+    .btn-submit-request {
+      width: 100%;
+      padding: 14px;
+      background: linear-gradient(135deg, #2563EB, #4F46E5);
+      color: #FFFFFF;
+      border: none;
+      border-radius: 10px;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      box-shadow: 0 6px 20px rgba(37, 99, 235, 0.4);
+      transition: all 0.2s;
+      margin-top: 10px;
+    }
+
+    .btn-submit-request:hover {
+      background: linear-gradient(135deg, #1D4ED8, #4338CA);
+      box-shadow: 0 8px 25px rgba(37, 99, 235, 0.6);
+      transform: translateY(-1px);
+    }
+
+    .btn-submit-request:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    /* Timeline Tracking Component */
+    .track-search-bar {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 20px;
+    }
+
+    .timeline-steps {
+      display: flex;
+      justify-content: space-between;
+      position: relative;
+      margin: 30px 0 20px 0;
+    }
+
+    .timeline-steps::before {
+      content: '';
+      position: absolute;
+      top: 18px;
+      left: 30px;
+      right: 30px;
+      height: 3px;
+      background: rgba(255, 255, 255, 0.1);
+      z-index: 1;
+    }
+
+    .timeline-step {
+      position: relative;
+      z-index: 2;
+      text-align: center;
+      flex: 1;
+    }
+
+    .step-circle {
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      background: #1E293B;
+      border: 3px solid #334155;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 8px auto;
+      font-size: 16px;
+      color: #64748B;
+      transition: all 0.3s;
+    }
+
+    .step-circle.active {
+      background: #3B82F6;
+      border-color: #60A5FA;
+      color: #FFFFFF;
+      box-shadow: 0 0 16px rgba(59, 130, 246, 0.6);
+    }
+
+    .step-circle.done {
+      background: #10B981;
+      border-color: #34D399;
+      color: #FFFFFF;
+    }
+
+    .step-label {
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: var(--text-muted);
+    }
+
+    .step-label.active {
+      color: #93C5FD;
+    }
+
+    .step-time {
+      font-size: 0.68rem;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    /* Status Badges */
+    .badge-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 700;
+    }
+
+    .badge-status.pending {
+      background: rgba(245, 158, 11, 0.15);
+      color: #FBBF24;
+      border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+
+    .badge-status.in_progress {
+      background: rgba(59, 130, 246, 0.15);
+      color: #60A5FA;
+      border: 1px solid rgba(59, 130, 246, 0.3);
+    }
+
+    .badge-status.completed {
+      background: rgba(16, 185, 129, 0.15);
+      color: #34D399;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+
+    /* Success Modal */
+    .success-modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.85);
+      backdrop-filter: blur(8px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 2000;
+      padding: 16px;
+    }
+
+    .success-modal-overlay.open {
+      display: flex;
+    }
+
+    .success-card {
+      background: #131B2B;
+      border: 1px solid rgba(16, 185, 129, 0.4);
+      border-radius: 16px;
+      max-width: 520px;
+      width: 100%;
+      padding: 28px;
+      text-align: center;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8);
+      animation: modalFadeIn 0.3s ease;
+    }
+
+    @keyframes modalFadeIn {
+      from { opacity: 0; transform: scale(0.95); }
+      to { opacity: 1; transform: scale(1); }
+    }
+
+    .success-icon {
+      font-size: 54px;
+      margin-bottom: 12px;
+    }
+
+    .success-code-badge {
+      display: inline-block;
+      background: rgba(59, 130, 246, 0.15);
+      border: 1px solid rgba(59, 130, 246, 0.4);
+      color: #60A5FA;
+      font-size: 1.4rem;
+      font-weight: 800;
+      font-family: 'JetBrains Mono', monospace;
+      padding: 6px 18px;
+      border-radius: 8px;
+      margin: 12px 0;
+      letter-spacing: 1px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- Top Navigation Header -->
+  <header class="portal-header">
+    <a href="/request" class="portal-logo">
+      <div class="portal-logo-icon">⚙️</div>
+      <div class="portal-logo-text">
+        <h1>BOPP EM MAINTENANCE</h1>
+        <p>CỔNG TIẾP NHẬN YÊU CẦU CÔNG VIỆC KỸ THUẬT</p>
+      </div>
+    </a>
+    <div class="portal-nav-actions">
+      <a href="/internal-tasks" class="btn-portal-login" title="Dành cho kỹ thuật viên">
+        <span>🔐 Đăng Nhập Kỹ Thuật</span>
+      </a>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="portal-container">
+
+    <!-- Tab Navigation -->
+    <div class="portal-tabs">
+      <button type="button" class="portal-tab-btn active" id="tabBtnCreate" onclick="switchPortalTab('create')">
+        <span>📝 Gửi Yêu Cầu Mới</span>
+      </button>
+      <button type="button" class="portal-tab-btn" id="tabBtnTrack" onclick="switchPortalTab('track')">
+        <span>🔍 Tra Cứu Tiến Độ</span>
+      </button>
+    </div>
+
+    <!-- PANEL 1: GỬI YÊU CẦU MỚI -->
+    <section id="panelCreate" class="portal-card">
+      <div class="card-title-row">
+        <span class="card-title-icon">📋</span>
+        <div class="card-title-text">
+          <h2>Phiếu Yêu Cầu Xử Lý Sự Cố / Công Việc Kỹ Thuật</h2>
+          <p>Điền thông tin sự cố, thiết bị và email nhận thông báo tự động theo dõi tiến độ</p>
+        </div>
+      </div>
+
+      <form id="publicRequestForm" onsubmit="handlePublicRequestSubmit(event)">
+        <!-- 1. Thông tin người gửi -->
+        <div class="form-section-title">
+          <span>👤</span> 1. Thông Tin Người Yêu Cầu
+        </div>
+
+        <div class="form-row-2">
+          <div class="portal-input-group">
+            <label class="portal-label">Họ và Tên Người Báo Cáo <span class="req">*</span></label>
+            <input type="text" id="reqName" class="portal-input" required placeholder="Ví dụ: Nguyễn Văn A">
+          </div>
+
+          <div class="portal-input-group">
+            <label class="portal-label">Phòng Ban / Bộ Phận <span class="req">*</span></label>
+            <input type="text" id="reqDept" class="portal-input" list="deptSuggestions" required placeholder="Chọn hoặc nhập phòng ban...">
+            <datalist id="deptSuggestions">
+              <option value="SẢN XUẤT BOPP 1">Bộ phận Vận hành Màng BOPP 1</option>
+              <option value="SẢN XUẤT BOPP 2">Bộ phận Vận hành Màng BOPP 2</option>
+              <option value="CHIA CUỘN TDL">Bộ phận Cắt chia cuộn TDL</option>
+              <option value="ĐÓNG GÓI - KHO">Bộ phận Đóng gói & Kho Thành phẩm</option>
+              <option value="QC / KCS">Phòng Quản lý Chất lượng QC</option>
+              <option value="KHO VẬT TƯ">Kho Phụ tùng - Vật tư Kỹ thuật</option>
+              <option value="AN TOÀN HSE">Ban An toàn Môi trường HSE</option>
+              <option value="VĂN PHÒNG HC-NS">Phòng Hành chính - Nhân sự</option>
+            </datalist>
+          </div>
+        </div>
+
+        <div class="form-row-2">
+          <div class="portal-input-group">
+            <label class="portal-label">Email Nhận Thông Báo Tiến Độ <span class="req">*</span> <span class="hint">(Rất quan trọng)</span></label>
+            <input type="email" id="reqEmail" class="portal-input" required placeholder="example@bopp.vn">
+          </div>
+
+          <div class="portal-input-group">
+            <label class="portal-label">Số Điện Thoại / Zalo Nội Bộ <span class="hint">(Để KTV liên hệ nhanh)</span></label>
+            <input type="tel" id="reqPhone" class="portal-input" placeholder="Ví dụ: 0988xxxxxx hoặc số máy lẻ">
+          </div>
+        </div>
+
+        <div class="email-highlight-box">
+          <span>📧</span>
+          <div>
+            <strong>Thông báo tự động:</strong> Khi bạn nhập email, hệ thống sẽ tự động gửi email thông báo chi tiết khi: <strong>Tiếp nhận yêu cầu</strong>, <strong>Có KTV nhận việc</strong>, <strong>KTV bắt đầu thực hiện</strong> và <strong>Công việc hoàn thành nghiệm thu</strong>.
+          </div>
+        </div>
+
+        <!-- 2. Chi tiết sự cố / công việc -->
+        <div class="form-section-title">
+          <span>⚙️</span> 2. Chi Tiết Sự Cố & Yêu Cầu Kỹ Thuật
+        </div>
+
+        <div class="portal-input-group">
+          <label class="portal-label">Tiêu Đề Yêu Cầu / Tên Sự Cố <span class="req">*</span></label>
+          <input type="text" id="reqTitle" class="portal-input" required placeholder="Ví dụ: Rò rỉ dầu xylanh kẹp cuộn TDL2, Lỗi động cơ quạt hút màng...">
+        </div>
+
+        <div class="form-row-2">
+          <div class="portal-input-group">
+            <label class="portal-label">Máy / Dây Chuyền / Khu Vực <span class="hint">(Gợi ý hoặc nhập tự do)</span></label>
+            <input type="text" id="reqMachine" class="portal-input" list="machineSuggestions" placeholder="Ví dụ: BOPP1, TDL2, CHILLER...">
+            <datalist id="machineSuggestions">
+              <option value="BOPP 1">Dây chuyền sản xuất màng BOPP 1</option>
+              <option value="BOPP 2">Dây chuyền sản xuất màng BOPP 2</option>
+              <option value="TDL 1">Máy chia cuộn màng TDL 1</option>
+              <option value="TDL 2">Máy chia cuộn màng TDL 2</option>
+              <option value="MC 1">Máy cắt màng 1</option>
+              <option value="MC 2">Máy cắt màng 2</option>
+              <option value="CHILLER">Hệ thống Máy Lạnh Chiller</option>
+              <option value="BOILER">Hệ thống Lò Dầu Tải Nhiệt</option>
+              <option value="MÁY NÉN KHÍ">Hệ thống Máy Nén Khí Trục Vít</option>
+              <option value="CẨU TRỤC">Cẩu trục / Pa-lăng nâng hạ</option>
+              <option value="KHUÔN ĐÙN">Hệ thống Đầu Khuôn đùn màng</option>
+              <option value="KHU VỰC CHUNG">Chiếu sáng / Nhà xưởng / Văn phòng</option>
+            </datalist>
+          </div>
+
+          <div class="portal-input-group">
+            <label class="portal-label">Mức Độ Khẩn Cấp <span class="req">*</span></label>
+            <select id="reqPriority" class="portal-select" required>
+              <option value="NORMAL" selected>🟢 Bình thường (Xử lý theo kế hoạch)</option>
+              <option value="HIGH">🟡 Ưu tiên cao (Cần gấp trong ca)</option>
+              <option value="URGENT">🔴 Khẩn cấp - Máy đang dừng!</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="portal-input-group">
+          <label class="portal-label">Mô Tả Chi Tiết Hiện Trạng / Triệu Chứng Sự Cố</label>
+          <textarea id="reqDesc" class="portal-textarea" rows="3" placeholder="Mô tả cụ thể hiện tượng lỗi, tiếng kêu bất thường, nhiệt độ hoặc các yêu cầu cần Kỹ thuật viên hỗ trợ..."></textarea>
+        </div>
+
+        <!-- 3. Hạng mục con (Checklist tùy chọn) -->
+        <div class="form-section-title">
+          <span>📋</span> 3. Các Đầu Việc Cụ Thể (Tùy chọn)
+        </div>
+
+        <div class="checklist-container">
+          <div id="checklistItemsList">
+            <!-- Dynamic checklist items -->
+          </div>
+          <button type="button" class="btn-add-item" onclick="addChecklistItemRow()">
+            + Thêm Đầu Việc / Hạng Mục Cụ Thể
+          </button>
+        </div>
+
+        <!-- 4. Ảnh hiện trường đính kèm -->
+        <div class="form-section-title">
+          <span>📸</span> 4. Ảnh Chụp Hiện Trường Sự Cố (Tùy chọn)
+        </div>
+
+        <input type="file" id="photoFileInput" accept="image/*" multiple style="display: none;" onchange="handlePhotoSelect(event)">
+        <div class="photo-upload-box" onclick="document.getElementById('photoFileInput').click()">
+          <div style="font-size: 28px; margin-bottom: 6px;">📷</div>
+          <div style="font-weight: 700; color: #C7D2FE; font-size: 0.95rem;">Bấm để chụp ảnh hoặc tải ảnh sự cố</div>
+          <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">Hỗ trợ ảnh chụp từ điện thoại, định dạng JPG, PNG (tối đa 5 ảnh)</div>
+        </div>
+
+        <div class="photo-preview-grid" id="photoPreviewGrid">
+          <!-- Previews inserted here -->
+        </div>
+
+        <!-- Nút gửi yêu cầu -->
+        <button type="submit" class="btn-submit-request" id="btnSubmitRequest">
+          <span>🚀 GỬI YÊU CẦU CHO BỘ PHẬN KỸ THUẬT</span>
+        </button>
+      </form>
+    </section>
+
+    <!-- PANEL 2: TRA CỨU TIẾN ĐỘ -->
+    <section id="panelTrack" class="portal-card" style="display: none;">
+      <div class="card-title-row">
+        <span class="card-title-icon">🔍</span>
+        <div class="card-title-text">
+          <h2>Tra Cứu Tiến Độ Yêu Cầu Công Việc</h2>
+          <p>Nhập Mã công việc (ví dụ: TASK-20260919-001) hoặc Email để xem tiến độ trực tiếp</p>
+        </div>
+      </div>
+
+      <div class="track-search-bar">
+        <input type="text" id="trackSearchInput" class="portal-input" placeholder="Nhập Mã công việc (TASK-xxxx) hoặc Email người yêu cầu..." onkeypress="if(event.key==='Enter') executeTrackSearch()">
+        <button type="button" class="btn-portal-login" style="background: #3B82F6; color: white; border: none; padding: 0 20px; cursor: pointer;" onclick="executeTrackSearch()">
+          <span>Tra Cứu</span>
+        </button>
+      </div>
+
+      <!-- Vùng hiển thị kết quả -->
+      <div id="trackResultContainer">
+        <div style="text-align: center; padding: 40px 16px; color: var(--text-muted);">
+          <div style="font-size: 38px; margin-bottom: 8px;">🔎</div>
+          <p style="margin: 0; font-size: 0.9rem;">Vui lòng nhập Mã công việc hoặc Email để xem chi tiết tiến độ xử lý.</p>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- SUCCESS POPUP MODAL -->
+  <div class="success-modal-overlay" id="successModal">
+    <div class="success-card">
+      <div class="success-icon">🎉</div>
+      <h3 style="font-size: 1.3rem; margin: 0; color: #34D399; font-weight: 800;">Gửi Yêu Cầu Thành Công!</h3>
+      <p style="font-size: 0.85rem; color: #CBD5E1; margin: 8px 0 12px 0;">Yêu cầu công việc của bạn đã được tiếp nhận vào hệ thống Kỹ thuật Cơ điện BOPP.</p>
+      
+      <div>
+        <span style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700;">Mã Công Việc Của Bạn:</span>
+      </div>
+      <div class="success-code-badge" id="successTaskCode">TASK-xxxx</div>
+
+      <div style="background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.25); border-radius: 8px; padding: 12px; margin: 16px 0; font-size: 0.8rem; color: #93C5FD; text-align: left;">
+        <div>📧 <strong>Email xác nhận:</strong> Hệ thống đã gửi email kèm đường dẫn theo dõi tiến độ tới: <strong id="successEmailDisplay" style="color: #FFFFFF;"></strong></div>
+        <div style="margin-top: 6px;">⏳ Kỹ thuật viên sẽ tiếp nhận và xử lý theo mức độ ưu tiên đã đăng ký.</div>
+      </div>
+
+      <div style="display: flex; gap: 10px; margin-top: 20px;">
+        <button type="button" class="btn-portal-login" style="flex: 1; justify-content: center; height: 42px;" onclick="viewSubmittedTaskProgress()">
+          🔍 Xem Tiến Độ Ngay
+        </button>
+        <button type="button" class="btn-submit-request" style="flex: 1; margin: 0; height: 42px; font-size: 0.85rem;" onclick="resetFormForNewRequest()">
+          📝 Gửi Yêu Cầu Khác
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/request.js"></script>
+</body>
+
+</html>

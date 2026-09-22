@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dữ Liệu Lệnh Bảo Dưỡng - BOPP Maintenance</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css?v=20260921_0835">
+  <script>(function () { const t = localStorage.getItem('bopp_theme') || 'dark'; document.documentElement.setAttribute('data-theme', t); if (t === 'light') document.documentElement.classList.add('light-theme'); })();</script>
+  <script src="/static/theme.js?v=20260921_0835"></script>
+</head>
+
+<body class="page-orders">
+  <!-- Fixed Top Header for Mobile Order Detail View (Locked to top edge) -->
+  <div class="mobile-detail-nav-bar" id="mobileDetailNavBar">
+    <button type="button" id="btnBackToOrdersList" class="btn-mobile-back" title="Quay lại danh sách lệnh">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <polyline points="15 18 9 12 15 6"></polyline>
+      </svg>
+      <span>Danh sách lệnh</span>
+    </button>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div id="toastContainer" class="toast-container"></div>
+
+  <!-- Header & Navigation -->
+  <header class="app-header">
+    <div class="header-content">
+      <div class="header-brand-row">
+        <div class="brand-wrapper-relative">
+          <div class="brand-clickable" id="brandMenuTrigger" onclick="toggleSystemAppMenu(event)"
+            title="Bấm vào Logo để chuyển nhanh giữa các trang chính">
+            <div class="brand-icon">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path
+                  d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
+              </svg>
+            </div>
+            <div>
+              <div style="display: flex; align-items: center;">
+                <h1 class="brand-title">BOPP EM <span>Maintenance</span></h1>
+                <span class="brand-menu-trigger-badge">
+                  MENU
+                  <svg class="brand-menu-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2.5">
+                    <path d="M6 9l6 6 6-6" />
+                  </svg>
+                </span>
+              </div>
+              <div class="system-status">
+                <span class="status-dot"></span>
+                <span>Trạng thái: <strong>Đang kết nối</strong></span>
+              </div>
+            </div>
+          </div>
+
+          <!-- System App Launcher Dropdown Menu -->
+          <div class="system-app-menu-dropdown" id="systemAppMenu">
+            <div class="app-menu-header">
+              <span class="app-menu-title">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                  <rect x="3" y="3" width="7" height="7"></rect>
+                  <rect x="14" y="3" width="7" height="7"></rect>
+                  <rect x="14" y="14" width="7" height="7"></rect>
+                  <rect x="3" y="14" width="7" height="7"></rect>
+                </svg>
+                CÁC PHÂN HỆ HỆ THỐNG
+              </span>
+              <span class="app-menu-badge-hub">BOPP HUB</span>
+            </div>
+
+            <div class="app-menu-grid">
+              <!-- 1. Công việc nội bộ -->
+              <a href="/internal-tasks" class="app-menu-item">
+                <div class="app-menu-icon" style="background: rgba(244, 63, 94, 0.15); color: #FB7185;">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path
+                      d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z">
+                    </path>
+                  </svg>
+                </div>
+                <div class="app-menu-text">
+                  <div class="app-menu-name-row">
+                    <span class="app-menu-name">Công Việc Nội Bộ</span>
+                  </div>
+                  <div class="app-menu-desc">Sự cố máy phát sinh, yêu cầu phòng ban &amp; cải tiến Kaizen</div>
+                </div>
+              </a>
+
+              <!-- 2. Dữ liệu bảo trì (với menu con: Mẫu SOP & Dashboard) -->
+              <div class="app-menu-group">
+                <a href="/" class="app-menu-item active">
+                  <div class="app-menu-icon" style="background: rgba(99, 102, 241, 0.15); color: #818CF8;">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                      <polyline points="14 2 14 8 20 8"></polyline>
+                      <line x1="16" y1="13" x2="8" y2="13"></line>
+                      <line x1="16" y1="17" x2="8" y2="17"></line>
+                    </svg>
+                  </div>
+                  <div class="app-menu-text">
+                    <div class="app-menu-name-row">
+                      <span class="app-menu-name">Dữ Liệu Bảo Trì</span>
+                      <span class="app-menu-current-pill">Đang xem</span>
+                    </div>
+                    <div class="app-menu-desc">Nhật ký bảo dưỡng, phân công &amp; thực hiện từng máy</div>
+                  </div>
+                </a>
+                <div class="app-menu-sublinks">
+                  <a href="/categories" class="app-menu-sublink">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                      <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+                    </svg>
+                    <span>Mẫu SOP</span>
+                  </a>
+                  <a href="/dashboard" class="app-menu-sublink">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <rect x="3" y="3" width="7" height="9"></rect>
+                      <rect x="14" y="3" width="7" height="5"></rect>
+                      <rect x="14" y="12" width="7" height="9"></rect>
+                      <rect x="3" y="16" width="7" height="5"></rect>
+                    </svg>
+                    <span>Dashboard &amp; Báo Cáo</span>
+                  </a>
+                </div>
+              </div>
+
+              <!-- 3. Quản lý tồn kho -->
+              <a href="/inventory" class="app-menu-item">
+                <div class="app-menu-icon" style="background: rgba(16, 185, 129, 0.15); color: #34D399;">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path
+                      d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z">
+                    </path>
+                    <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                    <line x1="12" y1="22.08" x2="12" y2="12"></line>
+                  </svg>
+                </div>
+                <div class="app-menu-text">
+                  <div class="app-menu-name-row">
+                    <span class="app-menu-name">Quản Lý Tồn Kho</span>
+                  </div>
+                  <div class="app-menu-desc">Tồn kho ERP 11 kho vật tư, phụ tùng &amp; phiếu yêu cầu xuất</div>
+                </div>
+              </a>
+
+              <!-- 4. Cấu hình hệ thống -->
+              <a href="/settings" class="app-menu-item">
+                <div class="app-menu-icon" style="background: rgba(156, 163, 175, 0.15); color: #D1D5DB;">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="3"></circle>
+                    <path
+                      d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z">
+                    </path>
+                  </svg>
+                </div>
+                <div class="app-menu-text">
+                  <div class="app-menu-name-row">
+                    <span class="app-menu-name">Cấu Hình Hệ Thống</span>
+                  </div>
+                  <div class="app-menu-desc">SMTP Email, thủ kho, thông báo &amp; tùy chỉnh chung</div>
+                </div>
+              </a>
+
+              <!-- 5. Yêu cầu bên ngoài -->
+              <a href="/request" target="_blank" class="app-menu-item">
+                <div class="app-menu-icon" style="background: rgba(59, 130, 246, 0.15); color: #60A5FA;">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="2" y1="12" x2="22" y2="12"></line>
+                    <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1 4-10z"></path>
+                  </svg>
+                </div>
+                <div class="app-menu-text">
+                  <div class="app-menu-name-row">
+                    <span class="app-menu-name">Yêu Cầu Bên Ngoài</span>
+                    <span
+                      style="font-size: 0.65rem; background: rgba(59, 130, 246, 0.2); color: #93C5FD; padding: 1px 6px; border-radius: 4px; font-weight: 700;">Public</span>
+                  </div>
+                  <div class="app-menu-desc">Gửi yêu cầu sửa chữa dành cho các phòng ban (không cần đăng nhập)</div>
+                </div>
+              </a>
+            </div>
+          </div>
+        </div>
+
+        <!-- User Profile Avatar Button (Compact at top right) -->
+        <!-- Theme Toggle & User Profile Avatar -->
+        <div class="header-actions-group">
+          <button type="button" id="themeToggleBtn" class="theme-toggle-btn" onclick="toggleTheme(event)"
+            title="Chuyển đổi Giao diện Sáng / Tối" aria-label="Toggle Theme">
+            <svg class="icon-moon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              stroke-width="2">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+            </svg>
+            <svg class="icon-sun" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              stroke-width="2">
+              <circle cx="12" cy="12" r="5"></circle>
+              <line x1="12" y1="1" x2="12" y2="3"></line>
+              <line x1="12" y1="21" x2="12" y2="23"></line>
+              <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+              <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+              <line x1="1" y1="12" x2="3" y2="12"></line>
+              <line x1="21" y1="12" x2="23" y2="12"></line>
+              <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+              <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+            </svg>
+          </button>
+          <div id="userProfileChip" class="user-profile-chip">
+            <!-- Injected dynamically by JS -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Main Navigation Menu (5 Core Menus) -->
+      <nav class="main-nav">
+        <!-- 1. Công Việc Nội Bộ -->
+        <a href="/internal-tasks" class="nav-link">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path
+              d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z">
+            </path>
+          </svg>
+          Công Việc Nội Bộ
+        </a>
+
+        <!-- 2. Dữ Liệu Bảo Trì (Menu con: Mẫu SOP & Dashboard) -->
+        <div class="nav-dropdown">
+          <div class="nav-dropdown-split">
+            <a href="/" class="nav-link nav-link-main active">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+                <line x1="16" y1="13" x2="8" y2="13"></line>
+                <line x1="16" y1="17" x2="8" y2="17"></line>
+              </svg>
+              <span>Dữ Liệu Bảo Trì</span>
+            </a>
+            <button type="button" class="nav-dropdown-arrow-btn" onclick="toggleNavDropdown(event)"
+              title="Mở danh sách menu con">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <path d="M6 9l6 6 6-6" />
+              </svg>
+            </button>
+          </div>
+          <div class="nav-dropdown-menu">
+            <a href="/" class="nav-dropdown-item active">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+              </svg>
+              <div>
+                <div class="nav-dropdown-title">Dữ Liệu Bảo Trì</div>
+                <div class="nav-dropdown-desc">Nhật ký &amp; lịch thực hiện máy</div>
+              </div>
+            </a>
+            <a href="/categories" class="nav-dropdown-item">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+              </svg>
+              <div>
+                <div class="nav-dropdown-title">Mẫu SOP</div>
+                <div class="nav-dropdown-desc">Quy trình chuẩn &amp; kho ảnh mẫu</div>
+              </div>
+            </a>
+            <a href="/dashboard" class="nav-dropdown-item">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="3" width="7" height="9"></rect>
+                <rect x="14" y="3" width="7" height="5"></rect>
+                <rect x="14" y="12" width="7" height="9"></rect>
+                <rect x="3" y="16" width="7" height="5"></rect>
+              </svg>
+              <div>
+                <div class="nav-dropdown-title">Dashboard &amp; Báo Cáo</div>
+                <div class="nav-dropdown-desc">Biểu đồ tiến độ KPI &amp; dừng máy</div>
+              </div>
+            </a>
+          </div>
+        </div>
+
+        <!-- 3. Quản Lý Tồn Kho -->
+        <a href="/inventory" class="nav-link">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path
+              d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z">
+            </path>
+            <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+            <line x1="12" y1="22.08" x2="12" y2="12"></line>
+          </svg>
+          Quản Lý Tồn Kho
+        </a>
+
+        <!-- 4. Cấu Hình Hệ Thống -->
+        <a href="/settings" class="nav-link">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path
+              d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z">
+            </path>
+          </svg>
+          Cấu Hình Hệ Thống
+        </a>
+
+        <!-- 5. Yêu Cầu Bên Ngoài -->
+        <a href="/request" target="_blank" class="nav-link"
+          title="Cổng gửi yêu cầu công việc dành cho các phòng ban khác (không cần đăng nhập)">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="2" y1="12" x2="22" y2="12"></line>
+            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1 4-10z"></path>
+          </svg>
+          Yêu Cầu Bên Ngoài
+        </a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Main Container (Focus on Data) -->
+  <main class="app-main-compact">
+    <!-- Sub Navigation for Dữ Liệu Bảo Trì Module -->
+    <nav class="sub-nav-bar" aria-label="Menu con Dữ liệu bảo trì">
+      <a href="/" class="sub-nav-item active">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+          <polyline points="14 2 14 8 20 8"></polyline>
+        </svg>
+        <span>Dữ Liệu Bảo Trì</span>
+      </a>
+      <a href="/categories" class="sub-nav-item">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+          <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+        </svg>
+        <span>Mẫu SOP</span>
+      </a>
+      <a href="/dashboard" class="sub-nav-item">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="3" width="7" height="9"></rect>
+          <rect x="14" y="3" width="7" height="5"></rect>
+          <rect x="14" y="12" width="7" height="9"></rect>
+          <rect x="3" y="16" width="7" height="5"></rect>
+        </svg>
+        <span>Dashboard &amp; Báo Cáo</span>
+      </a>
+    </nav>
+
+    <!-- Toolbar Filters -->
+    <section class="toolbar-card">
+      <div class="search-box-row">
+        <div class="search-box">
+          <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="2">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+          <input type="text" id="searchInput"
+            placeholder="Tìm kiếm theo Số Lệnh (EO...), Tên công việc, Mã máy (SL1, BR1...), Kỹ thuật viên..."
+            autocomplete="off">
+          <button id="btnClearSearch" class="btn-clear" title="Xóa tìm kiếm">&times;</button>
+        </div>
+        <button id="btnToggleOrdersFilter" class="btn-mobile-filter-toggle" type="button" title="Mở bộ lọc nâng cao">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+          </svg>
+          <span>Bộ Lọc</span>
+          <span id="ordersFilterBadge" class="filter-count-badge" style="display: none;">0</span>
+        </button>
+      </div>
+
+      <div class="filter-group mobile-filter-panel is-collapsed" id="ordersFilterPanel">
+        <!-- 1. Lọc Trạng Thái -->
+        <div class="filter-item-block">
+          <span class="filter-block-label">Trạng thái:</span>
+          <div class="segmented-control status-segmented">
+            <button class="seg-btn active" data-status="all">Tất Cả</button>
+            <button class="seg-btn" data-status="open">Đang Mở</button>
+            <button class="seg-btn" data-status="closed">Đã Đóng</button>
+          </div>
+        </div>
+
+        <!-- 2. Lọc Theo % (100% & Dưới 100%) -->
+        <div class="filter-item-block">
+          <span class="filter-block-label">Tiến độ %:</span>
+          <div class="segmented-control percent-segmented">
+            <button class="seg-pct-btn active" data-percent="all">Tất Cả %</button>
+            <button class="seg-pct-btn" data-percent="100">100%</button>
+            <button class="seg-pct-btn" data-percent="under_100">Dưới 100%</button>
+          </div>
+        </div>
+
+        <!-- 3. Tiêu chí đối chiếu %: ERP / Việc / Cả hai -->
+        <div class="filter-item-block">
+          <span class="filter-block-label">Theo:</span>
+          <select id="percentTypeSelect" class="form-select filter-select-compact" title="Chọn loại % làm căn cứ lọc">
+            <option value="erp" selected>📑 % ERP</option>
+            <option value="staff">👷 % Công việc</option>
+            <option value="either">⚡ Cả hai</option>
+          </select>
+        </div>
+
+        <button id="btnRefresh" class="btn-secondary" title="Tải lại danh sách">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+          </svg>
+          Làm Mới
+        </button>
+      </div>
+    </section>
+
+    <!-- Split Workspace (Maximized Viewport) -->
+    <div class="workspace-grid">
+      <!-- Left Column: Order List -->
+      <section class="orders-column">
+        <div class="column-header">
+          <div class="column-title">
+            <span>Danh Sách Lệnh Bảo Dưỡng</span>
+            <span class="badge-counter" id="ordersCounter">0 lệnh</span>
+          </div>
+          <div class="scroll-hint">
+            <span id="loadedStatus"
+              style="font-size: 0.78rem; color: var(--text-muted); font-family: var(--font-mono);">Đang tải...</span>
+          </div>
+        </div>
+
+        <!-- KPI Tỷ Lệ: % công việc hoàn thành & % ERP đã có kết quả -->
+        <div class="orders-kpi-bar" id="ordersKpiBar">
+          <div class="orders-kpi-item" title="Tiến độ thực hiện các việc con đã hoàn thành trên lệnh">
+            <span class="kpi-label">👷CV:</span>
+            <span class="kpi-value kpi-staff" id="kpiStaffPct">--%</span>
+          </div>
+          <div class="orders-kpi-item" title="Tỷ lệ các lệnh bảo trì đã có Phiếu kết quả trên data ERP">
+            <span class="kpi-label">📑ERP :</span>
+            <span class="kpi-value kpi-erp" id="kpiErpPct">--%</span>
+          </div>
+        </div>
+
+        <div id="ordersList" class="orders-list">
+          <div class="loading-state">
+            <div class="spinner"></div>
+            <p>Đang tải dữ liệu lệnh bảo dưỡng...</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Right Column: Order Detail Inspector -->
+      <section class="detail-column" id="orderDetailColumn">
+        <div id="detailContainer" class="detail-container">
+          <div class="empty-detail-state">
+            <div class="empty-icon">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+                <circle cx="12" cy="14" r="3"></circle>
+                <line x1="12" y1="2" x2="12" y2="5"></line>
+              </svg>
+            </div>
+            <h3>Chọn Một Lệnh Bảo Dưỡng</h3>
+            <p>Nhấp vào bất kỳ thẻ lệnh nào bên danh sách để xem chi tiết đầy đủ về thiết bị, phân công kỹ thuật viên,
+              danh mục vật tư phụ tùng và kết quả nghiệm thu.</p>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <!-- Modal Xem Ảnh Mẫu SOP Chuẩn -->
+  <div id="sopModal" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-header">
+        <button type="button" class="btn-modal-back" onclick="document.getElementById('btnCloseSopModal').click()">←
+          Quay lại</button>
+        <h3 id="sopModalTitle">Tiêu Chuẩn SOP &amp; Ảnh Mẫu</h3>
+        <button id="btnCloseSopModal" class="modal-close-btn">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="sop-meta-info" id="sopModalMeta">---</div>
+        <div class="sop-image-view" id="sopModalImgWrapper">
+          <!-- Rendered dynamically -->
+        </div>
+        <div class="sop-guideline-box">
+          <label style="font-weight: 700; color: #93C5FD; display: block; margin-bottom: 6px;">
+            📋 Hướng dẫn tiêu chuẩn &amp; Góc chụp đối chiếu:
+          </label>
+          <div id="sopModalGuideline" style="font-size: 0.9rem; line-height: 1.6; color: var(--text-primary);">---</div>
+        </div>
+        <div class="modal-actions" style="margin-top: 20px;">
+          <a href="/categories" class="btn-secondary"
+            style="text-decoration: none; display: inline-flex; align-items: center; gap: 6px;">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+            </svg>
+            <span>Mở Thư Viện Hạng Mục &amp; SOP</span>
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Tải / Chụp Ảnh Minh Chứng Thực Tế -->
+  <!-- Modal Tải / Chụp Ảnh Minh Chứng Thực Tế -->
+  <div id="uploadProofModal" class="modal-overlay">
+    <div class="modal-card modal-proof-comparison">
+      <div class="modal-header">
+        <button type="button" class="btn-modal-back" onclick="closeProofModal()">← Quay lại</button>
+        <h3 id="proofModalTitle" class="modal-title">Đối Chiếu &amp; Chụp Ảnh</h3>
+        <button type="submit" form="proofUploadForm" id="btnSubmitProofModal" class="btn-header-save">Lưu Ảnh</button>
+        <button type="button" id="btnCloseProofModal" class="modal-close-btn" style="display:none;"
+          onclick="closeProofModal()">&times;</button>
+      </div>
+      <form id="proofUploadForm" class="modal-body">
+        <input type="hidden" id="proofMachineId">
+        <input type="hidden" id="proofTaskDRowId">
+
+        <div class="proof-task-info-bar">
+          <span class="proof-task-badge">Hạng mục:</span>
+          <span id="proofTaskInfo" class="proof-task-title">---</span>
+        </div>
+
+        <!-- 1. KHUNG ẢNH MẪU TIÊU CHUẨN (SOP) (TRÊN) -->
+        <div class="proof-modal-sop-reference" id="proofModalSopReference">
+          <div class="sop-reference-header">
+            <span class="badge-sop-ref">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+                <line x1="16" y1="13" x2="8" y2="13"></line>
+                <line x1="16" y1="17" x2="8" y2="17"></line>
+              </svg>
+              Ảnh Mẫu Tiêu Chuẩn (SOP)
+            </span>
+          </div>
+          <div class="sop-reference-body-vertical">
+            <div id="proofModalSampleBox" class="sop-ref-sample-box-large">
+              <!-- Injected dynamically: Sample Image or Placeholder -->
+            </div>
+            <div class="sop-ref-guideline-box">
+              <div class="guideline-label">📋 Tiêu chuẩn kỹ thuật:</div>
+              <div id="proofModalGuideline" class="guideline-content">---</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. KHUNG ẢNH THỰC TẾ HIỆN TRƯỜNG (DƯỚI) - CHẠM VÀO ĐỂ CHỤP ẢNH NGAY -->
+        <div class="proof-actual-section">
+          <div class="actual-section-header">
+            <span class="badge-actual-ref">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+                <circle cx="12" cy="13" r="4"></circle>
+              </svg>
+              Ảnh Thực Tế Hiện Trường
+            </span>
+            <span class="actual-header-hint">Chạm vào khung để chụp</span>
+          </div>
+
+          <input type="file" id="proofCameraInput" accept="image/*" capture="environment"
+            style="position: absolute; opacity: 0; width: 0.1px; height: 0.1px; z-index: -1; pointer-events: none;">
+
+          <label for="proofCameraInput" id="proofActualCaptureBox" class="proof-actual-capture-box"
+            title="Chạm để mở Camera chụp ảnh thực tế">
+            <div id="proofFilePreview" class="proof-file-preview-content">
+              <div class="actual-placeholder">
+                <div class="camera-icon-circle">
+                  <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+                    <circle cx="12" cy="13" r="4"></circle>
+                  </svg>
+                </div>
+                <div class="actual-prompt-main">Chạm vào đây để chụp ảnh thực tế</div>
+                <div class="actual-prompt-sub">Mở Camera hiện trường • Tự động nén tối ưu</div>
+              </div>
+            </div>
+          </label>
+        </div>
+
+        <div class="form-group" style="margin-top: 10px; margin-bottom: 8px;">
+          <label for="proofCaptionInput">Mô tả kết quả / Ghi chú góc chụp:</label>
+          <input type="text" id="proofCaptionInput" class="form-input"
+            placeholder="Ví dụ: Đã vệ sinh sạch sẽ, thay mới ron cao su...">
+        </div>
+
+        <div class="modal-actions modal-actions-desktop-only">
+          <button type="button" id="btnCancelProofModal" class="btn-secondary" onclick="closeProofModal()">Hủy
+            Bỏ</button>
+          <button type="submit" class="btn-sync">
+            <span class="btn-text">Lưu Ảnh</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Lightbox Zoom Modal -->
+  <div id="lightboxModal" class="lightbox-overlay">
+    <div class="lightbox-content">
+      <button id="btnCloseLightbox" class="lightbox-close">&times;</button>
+      <img id="lightboxImg" src="" alt="Ảnh phóng to">
+      <div id="lightboxCaption" class="lightbox-caption"></div>
+    </div>
+  </div>
+
+  <!-- Login Modal -->
+  <div id="loginModal" class="modal-overlay">
+    <div class="modal-card modal-login">
+      <div class="modal-header">
+        <button type="button" class="btn-modal-back" onclick="document.getElementById('btnCloseLoginModal').click()">←
+          Quay lại</button>
+        <h3>Đăng Nhập Kỹ Thuật Viên / Quản Trị</h3>
+        <button id="btnCloseLoginModal" class="modal-close-btn">&times;</button>
+      </div>
+      <form id="loginForm" class="modal-body">
+        <div class="form-group">
+          <label for="loginUsername">Mã nhân viên / Tên đăng nhập:</label>
+          <input type="text" id="loginUsername" class="form-input" placeholder="Ví dụ: BOPP0537 hoặc admin" required>
+        </div>
+        <div class="form-group">
+          <label for="loginPassword">Mật khẩu:</label>
+          <input type="password" id="loginPassword" class="form-input" placeholder="Nhập mật khẩu..." required>
+        </div>
+
+        <div class="quick-demo-users">
+          <span style="font-size: 0.75rem; color: var(--text-muted); display: block; margin-bottom: 6px;">Tài khoản kỹ
+            thuật mẫu:</span>
+          <button type="button" class="quick-user-btn" data-user="BOPP0537" data-pass="123456">KTV Đạt
+            (BOPP0537)</button>
+          <button type="button" class="quick-user-btn" data-user="BOPP0048" data-pass="123456">Giám sát Thuật
+            (BOPP0048)</button>
+          <button type="button" class="quick-user-btn" data-user="admin" data-pass="admin@123">Quản trị viên
+            (admin)</button>
+        </div>
+
+        <div class="modal-actions">
+          <button type="submit" class="btn-sync" style="width: 100%; justify-content: center;">
+            <span class="btn-text">Đăng Nhập</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal Xem Thông Tin & Đăng Xuất Người Dùng (Mobile / Desktop) -->
+  <div id="userProfileModal" class="modal-overlay">
+    <div class="modal-card modal-profile-card">
+      <div class="modal-header">
+        <button type="button" class="btn-modal-back" onclick="document.getElementById('btnCloseProfileModal').click()">←
+          Quay lại</button>
+        <h3 id="userProfileModalTitle">Thông Tin Tài Khoản</h3>
+        <button id="btnCloseProfileModal" class="modal-close-btn">&times;</button>
+      </div>
+      <div class="modal-body user-profile-modal-body">
+        <div class="profile-avatar-large" id="profileAvatarLarge">U</div>
+        <div class="profile-info-block">
+          <h4 id="profileFullName">Nguyễn Thành Đạt</h4>
+          <span id="profileRoleBadge" class="user-role-badge">Kỹ thuật viên</span>
+          <div id="profileUsername" class="profile-username-tag">Mã NV: BOPP0537</div>
+        </div>
+        <div class="modal-actions" style="width: 100%; margin-top: 14px;">
+          <button type="button" id="btnModalLogout" class="btn-logout-full">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+              <polyline points="16 17 21 12 16 7"></polyline>
+              <line x1="21" y1="12" x2="9" y2="12"></line>
+            </svg>
+            <span>Đăng Xuất Khỏi Thiết Bị</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/realtime.js?v=20260922_1250"></script>
+  <script src="/static/brand-menu.js?v=20260921_0835"></script>
+  <script src="/static/app.js?v=20260922_1250"></script>
+</body>
+
+</html>

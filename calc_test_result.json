@@ -1,0 +1,119 @@
+{
+  "latest_stock_samples": [
+    {
+      "EntryID": "IB2607-0001",
+      "EntryDate": "2026-07-01",
+      "WHouseID": "DC",
+      "ItemID": "10CD02-023",
+      "StorageID": "G1.3",
+      "Unit1Qty": "5.0000"
+    },
+    {
+      "EntryID": "IB2607-0001",
+      "EntryDate": "2026-07-01",
+      "WHouseID": "DC",
+      "ItemID": "10CD02-038",
+      "StorageID": "ZZZ",
+      "Unit1Qty": "2.0000"
+    },
+    {
+      "EntryID": "IB2607-0001",
+      "EntryDate": "2026-07-01",
+      "WHouseID": "DC",
+      "ItemID": "10CK02-031",
+      "StorageID": "TU-DC",
+      "Unit1Qty": "2.0000"
+    },
+    {
+      "EntryID": "IB2607-0001",
+      "EntryDate": "2026-07-01",
+      "WHouseID": "DC",
+      "ItemID": "10CK02-050",
+      "StorageID": "TU-DC",
+      "Unit1Qty": "2.0000"
+    },
+    {
+      "EntryID": "IB2607-0001",
+      "EntryDate": "2026-07-01",
+      "WHouseID": "DC",
+      "ItemID": "10CK02-078",
+      "StorageID": "ZZZ",
+      "Unit1Qty": "1.0000"
+    }
+  ],
+  "latest_entries": [
+    {
+      "EntryDate": "2026-09-17",
+      "WHouseID": "PTBS",
+      "ItemID": "11BH02-006",
+      "IsImp": false,
+      "Unit1Qty": "6.0000",
+      "StorageID": "",
+      "MachineID": "PXPP"
+    },
+    {
+      "EntryDate": "2026-09-17",
+      "WHouseID": "PTBS",
+      "ItemID": "11BH02-007",
+      "IsImp": false,
+      "Unit1Qty": "22.0000",
+      "StorageID": "",
+      "MachineID": "PXPP"
+    },
+    {
+      "EntryDate": "2026-09-17",
+      "WHouseID": "VT",
+      "ItemID": "11BH02-013",
+      "IsImp": false,
+      "Unit1Qty": "46.0000",
+      "StorageID": "ZZZ",
+      "MachineID": "PXPP"
+    },
+    {
+      "EntryDate": "2026-09-17",
+      "WHouseID": "VT",
+      "ItemID": "11BH02-012",
+      "IsImp": false,
+      "Unit1Qty": "38.0000",
+      "StorageID": "ZZZ",
+      "MachineID": "PXPP"
+    },
+    {
+      "EntryDate": "2026-09-17",
+      "WHouseID": "VT",
+      "ItemID": "11BH02-003",
+      "IsImp": false,
+      "Unit1Qty": "46.0000",
+      "StorageID": "ZZZ",
+      "MachineID": "PXPP"
+    }
+  ],
+  "item_calc_sample_04XD07_006": {
+    "TotalImport": "312.0000",
+    "TotalExport": "163.0000",
+    "NetStock": "149.0000"
+  },
+  "avg_samples": [
+    {
+      "PeriodID": "2026/07",
+      "ItemID": "04XD07-006",
+      "Unit1Qty": "191.0000",
+      "Unit1Cost": "75000.0000",
+      "CostAmt": "14325000"
+    },
+    {
+      "PeriodID": "2026/06",
+      "ItemID": "04XD07-006",
+      "Unit1Qty": "194.0000",
+      "Unit1Cost": "75000.0000",
+      "CostAmt": "14550000"
+    },
+    {
+      "PeriodID": "2026/05",
+      "ItemID": "04XD07-006",
+      "Unit1Qty": "204.0000",
+      "Unit1Cost": "75000.0000",
+      "CostAmt": "15300000"
+    }
+  ]
+}

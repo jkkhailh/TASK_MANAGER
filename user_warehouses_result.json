@@ -1,0 +1,207 @@
+{
+  "duration_seconds": 0.3087897300720215,
+  "target_warehouses": [
+    "DC",
+    "DM",
+    "GC",
+    "NL",
+    "PT",
+    "PTBS",
+    "TH",
+    "ZZZ",
+    "VT",
+    "VTNL"
+  ],
+  "total_items": 1550,
+  "stock_positive_total": 988,
+  "stock_zero_total": 562,
+  "low_stock_total": 136,
+  "zzz_check": {
+    "in_WHouseID": 0,
+    "in_StorageID": 9687
+  },
+  "by_warehouse": {
+    "DC": {
+      "WHouseText": "Công cụ, dụng cụ tồn kho",
+      "total_items": 117,
+      "stock_positive": 99,
+      "stock_zero": 18,
+      "low_stock": 6
+    },
+    "DM": {
+      "WHouseText": "Kho dầu mỡ máy",
+      "total_items": 25,
+      "stock_positive": 22,
+      "stock_zero": 3,
+      "low_stock": 5
+    },
+    "GC": {
+      "WHouseText": "Kho gia công",
+      "total_items": 78,
+      "stock_positive": 15,
+      "stock_zero": 63,
+      "low_stock": 0
+    },
+    "NL": {
+      "WHouseText": "Kho nhiên liệu (khí đốt, xăng dầu)",
+      "total_items": 0,
+      "stock_positive": 0,
+      "stock_zero": 0,
+      "low_stock": 0
+    },
+    "PT": {
+      "WHouseText": "Kho phụ tùng",
+      "total_items": 161,
+      "stock_positive": 133,
+      "stock_zero": 28,
+      "low_stock": 3
+    },
+    "PTBS": {
+      "WHouseText": "Kho phụ tùng T",
+      "total_items": 44,
+      "stock_positive": 0,
+      "stock_zero": 44,
+      "low_stock": 15
+    },
+    "TH": {
+      "WHouseText": "Kho thu hồi (hỏng)",
+      "total_items": 369,
+      "stock_positive": 131,
+      "stock_zero": 238,
+      "low_stock": 70
+    },
+    "ZZZ": {
+      "WHouseText": "Chưa định nghĩa trong CL_tblWHouse",
+      "total_items": 0,
+      "stock_positive": 0,
+      "stock_zero": 0,
+      "low_stock": 0
+    },
+    "VT": {
+      "WHouseText": "Kho vật tư",
+      "total_items": 616,
+      "stock_positive": 505,
+      "stock_zero": 111,
+      "low_stock": 34
+    },
+    "VTNL": {
+      "WHouseText": "Kho vật tư cũ (sử dụng)",
+      "total_items": 140,
+      "stock_positive": 83,
+      "stock_zero": 57,
+      "low_stock": 3
+    }
+  },
+  "samples": [
+    {
+      "WHouseID": "DC",
+      "WHouseText": "Công cụ, dụng cụ tồn kho",
+      "ItemID": "10CK02-031",
+      "ItemText": "Kìm bấm cos HD16L ĐL",
+      "Unit": "CAI",
+      "StorageID": "TU-DC",
+      "CurrentStock": "2.0000",
+      "QtyMin": "0.0000",
+      "QtyMax": "0.0000"
+    },
+    {
+      "WHouseID": "DC",
+      "WHouseText": "Công cụ, dụng cụ tồn kho",
+      "ItemID": "10CK02-050",
+      "ItemText": "Kìm mở phe trong mũi thẳng SATA 72032",
+      "Unit": "CAI",
+      "StorageID": "TU-DC",
+      "CurrentStock": "2.0000",
+      "QtyMin": "0.0000",
+      "QtyMax": "0.0000"
+    },
+    {
+      "WHouseID": "DC",
+      "WHouseText": "Công cụ, dụng cụ tồn kho",
+      "ItemID": "10CK02-074",
+      "ItemText": "Máy mài góc Makita 1T M9513B",
+      "Unit": "CAI",
+      "StorageID": "TU-DC",
+      "CurrentStock": "0.0000",
+      "QtyMin": "0.0000",
+      "QtyMax": "0.0000"
+    },
+    {
+      "WHouseID": "DC",
+      "WHouseText": "Công cụ, dụng cụ tồn kho",
+      "ItemID": "10CK02-078",
+      "ItemText": "Máy thủy bình laser Laisai - Model LSG 686SPD",
+      "Unit": "CAI",
+      "StorageID": "ZZZ",
+      "CurrentStock": "1.0000",
+      "QtyMin": "0.0000",
+      "QtyMax": "0.0000"
+    },
+    {
+      "WHouseID": "DC",
+      "WHouseText": "Công cụ, dụng cụ tồn kho",
+      "ItemID": "10CK02-080",
+      "ItemText": "Mỏ lết 10\" Stanley STMT87433-8",
+      "Unit": "CAI",
+      "StorageID": "ZZZ",
+      "CurrentStock": "0.0000",
+      "QtyMin": "0.0000",
+      "QtyMax": "0.0000"
+    },
+    {
+      "WHouseID": "DC",
+      "WHouseText": "Công cụ, dụng cụ tồn kho",
+      "ItemID": "10CK02-091",
+      "ItemText": "Tay quay Taro M4-12",
+      "Unit": "CAY",
+      "StorageID": "TU-DC",
+      "CurrentStock": "0.0000",
+      "QtyMin": "0.0000",
+      "QtyMax": "0.0000"
+    },
+    {
+      "WHouseID": "DC",
+      "WHouseText": "Công cụ, dụng cụ tồn kho",
+      "ItemID": "10CK02-098",
+      "ItemText": "Thước cặp cơ khí 0-600mm Mitutoyo (530-501)",
+      "Unit": "CAI",
+      "StorageID": "ZZZ",
+      "CurrentStock": "1.0000",
+      "QtyMin": "0.0000",
+      "QtyMax": "0.0000"
+    },
+    {
+      "WHouseID": "DC",
+      "WHouseText": "Công cụ, dụng cụ tồn kho",
+      "ItemID": "10CK02-120",
+      "ItemText": "Thước Nivo cân máy, Model: 4903-200A",
+      "Unit": "CAI",
+      "StorageID": "PL5.2",
+      "CurrentStock": "1.0000",
+      "QtyMin": "0.0000",
+      "QtyMax": "0.0000"
+    },
+    {
+      "WHouseID": "DC",
+      "WHouseText": "Công cụ, dụng cụ tồn kho",
+      "ItemID": "10CK02-121",
+      "ItemText": "Thước Nivo khung (thước thủy vuông) RSK, Model: 541-1502",
+      "Unit": "CAI",
+      "StorageID": "PL5.2",
+      "CurrentStock": "1.0000",
+      "QtyMin": "0.0000",
+      "QtyMax": "0.0000"
+    },
+    {
+      "WHouseID": "DC",
+      "WHouseText": "Công cụ, dụng cụ tồn kho",
+      "ItemID": "10CK02-124",
+      "ItemText": "Nivo cân máy Vogel 160mm (360251)",
+      "Unit": "CAI",
+      "StorageID": "PL5.2",
+      "CurrentStock": "1.0000",
+      "QtyMin": "0.0000",
+      "QtyMax": "0.0000"
+    }
+  ]
+}

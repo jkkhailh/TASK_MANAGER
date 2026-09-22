@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cấu Hình Hệ Thống - BOPP Maintenance</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css">
+  <style>
+    /* ============================================================
+       SETTINGS PAGE LAYOUT
+       ============================================================ */
+    .settings-page {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 24px 20px 60px;
+    }
+
+    .settings-page-title {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 28px;
+    }
+    .settings-page-title .title-icon {
+      width: 44px; height: 44px;
+      background: linear-gradient(135deg, rgba(99,102,241,0.25), rgba(79,70,229,0.15));
+      border: 1px solid rgba(99,102,241,0.4);
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      color: #818CF8;
+      flex-shrink: 0;
+    }
+    .settings-page-title h1 {
+      font-size: 1.45rem;
+      font-weight: 800;
+      color: var(--text-primary);
+      margin: 0;
+    }
+    .settings-page-title p {
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      margin: 2px 0 0;
+    }
+
+    /* ---- Section Card ---- */
+    .settings-section {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      margin-bottom: 20px;
+      backdrop-filter: blur(12px);
+    }
+    .settings-section-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border-subtle);
+      background: rgba(255,255,255,0.02);
+    }
+    .settings-section-header .section-icon {
+      width: 34px; height: 34px;
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .settings-section-header .section-title {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+    .settings-section-header .section-desc {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      margin-top: 1px;
+    }
+    .settings-section-body {
+      padding: 20px;
+    }
+
+    /* ---- Toggle Row ---- */
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: rgba(99,102,241,0.08);
+      border: 1px solid rgba(99,102,241,0.2);
+      border-radius: var(--radius-sm);
+      padding: 12px 16px;
+      margin-bottom: 18px;
+    }
+    .toggle-row-label {
+      font-weight: 700;
+      color: #E0E7FF;
+      font-size: 0.88rem;
+    }
+    .toggle-row-desc {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 3px;
+    }
+
+    /* ---- Form Grid ---- */
+    .form-grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .form-grid-2-1 {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 12px;
+    }
+    @media (max-width: 560px) {
+      .form-grid-2, .form-grid-2-1 { grid-template-columns: 1fr; }
+    }
+
+    /* ---- SMTP Divider ---- */
+    .smtp-divider {
+      border: none;
+      border-top: 1px solid var(--border-subtle);
+      margin: 18px 0 14px;
+    }
+    .smtp-section-label {
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: #C7D2FE;
+      margin-bottom: 12px;
+    }
+
+    /* ---- TLS Row ---- */
+    .tls-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: rgba(0,0,0,0.2);
+      padding: 10px 14px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border-subtle);
+      margin-bottom: 18px;
+    }
+    .tls-row-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* ---- Action Footer ---- */
+    .settings-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-top: 1px solid var(--border-subtle);
+      padding-top: 16px;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .settings-footer-left { display: flex; gap: 8px; align-items: center; }
+    .settings-footer-right { display: flex; gap: 8px; }
+
+    /* ---- Status Toast ---- */
+    .settings-toast {
+      display: none;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 16px;
+      border-radius: var(--radius-sm);
+      font-size: 0.84rem;
+      font-weight: 600;
+      animation: fadeInUp 0.3s ease;
+      margin-bottom: 16px;
+    }
+    .settings-toast.success {
+      background: rgba(16,185,129,0.12);
+      border: 1px solid rgba(16,185,129,0.35);
+      color: #6EE7B7;
+      display: flex;
+    }
+    .settings-toast.error {
+      background: rgba(239,68,68,0.12);
+      border: 1px solid rgba(239,68,68,0.35);
+      color: #FCA5A5;
+      display: flex;
+    }
+
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ---- Form helpers ---- */
+    .form-label-accent {
+      font-weight: 700;
+      color: #93C5FD;
+    }
+    .form-hint {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+  </style>
+</head>
+<body class="page-settings">
+
+  <!-- Header & Navigation (shared structure) -->
+  <header class="app-header">
+    <div class="header-content">
+      <div class="header-brand-row">
+        <div class="brand-wrapper-relative">
+          <div class="brand-clickable" id="brandMenuTrigger" onclick="toggleSystemAppMenu(event)" title="Bấm vào Logo để chuyển nhanh giữa các trang chính">
+            <div class="brand-icon">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
+              </svg>
+            </div>
+            <div>
+              <div style="display: flex; align-items: center;">
+                <h1 class="brand-title">BOPP EM <span>Maintenance</span></h1>
+                <span class="brand-menu-trigger-badge">
+                  MENU
+                  <svg class="brand-menu-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>
+                </span>
+              </div>
+              <div class="system-status">
+                <span class="status-dot"></span>
+                <span>Trạng thái: <strong>Đang kết nối</strong></span>
+              </div>
+            </div>
+          </div>
+
+          <!-- System App Launcher Dropdown Menu -->
+          <div class="system-app-menu-dropdown" id="systemAppMenu">
+            <div class="app-menu-header">
+              <span class="app-menu-title">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                CÁC PHÂN HỆ HỆ THỐNG
+              </span>
+              <span class="app-menu-badge-hub">BOPP HUB</span>
+            </div>
+
+            <div class="app-menu-grid">
+              <a href="/" class="app-menu-item">
+                <div class="app-menu-icon" style="background: rgba(99, 102, 241, 0.15); color: #818CF8;">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+                </div>
+                <div class="app-menu-text">
+                  <div class="app-menu-name-row"><span class="app-menu-name">Dữ Liệu Bảo Trì</span></div>
+                  <div class="app-menu-desc">Nhật ký bảo dưỡng, phân công &amp; thực hiện từng máy</div>
+                </div>
+              </a>
+
+              <a href="/categories" class="app-menu-item">
+                <div class="app-menu-icon" style="background: rgba(6, 182, 212, 0.15); color: #22D3EE;">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
+                </div>
+                <div class="app-menu-text">
+                  <div class="app-menu-name-row"><span class="app-menu-name">Thư Viện SOP</span></div>
+                  <div class="app-menu-desc">Quy trình chuẩn các bước thực hiện &amp; kho ảnh mẫu</div>
+                </div>
+              </a>
+
+              <a href="/dashboard" class="app-menu-item">
+                <div class="app-menu-icon" style="background: rgba(245, 158, 11, 0.15); color: #FBBF24;">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9"></rect><rect x="14" y="3" width="7" height="5"></rect><rect x="14" y="12" width="7" height="9"></rect><rect x="3" y="16" width="7" height="5"></rect></svg>
+                </div>
+                <div class="app-menu-text">
+                  <div class="app-menu-name-row"><span class="app-menu-name">Dashboard &amp; Báo Cáo</span></div>
+                  <div class="app-menu-desc">Biểu đồ tiến độ KPI &amp; thời gian dừng máy</div>
+                </div>
+              </a>
+
+              <a href="/inventory" class="app-menu-item">
+                <div class="app-menu-icon" style="background: rgba(16, 185, 129, 0.15); color: #34D399;">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+                </div>
+                <div class="app-menu-text">
+                  <div class="app-menu-name-row"><span class="app-menu-name">Quản Lý Tồn Kho</span></div>
+                  <div class="app-menu-desc">Tồn kho ERP 11 kho vật tư, phụ tùng &amp; phiếu yêu cầu xuất</div>
+                </div>
+              </a>
+
+              <a href="/internal-tasks" class="app-menu-item">
+                <div class="app-menu-icon" style="background: rgba(244, 63, 94, 0.15); color: #FB7185;">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path></svg>
+                </div>
+                <div class="app-menu-text">
+                  <div class="app-menu-name-row"><span class="app-menu-name">Công Việc Nội Bộ &amp; Sự Cố</span></div>
+                  <div class="app-menu-desc">Sự cố máy phát sinh, yêu cầu phòng ban &amp; cải tiến Kaizen</div>
+                </div>
+              </a>
+
+              <a href="/settings" class="app-menu-item active">
+                <div class="app-menu-icon" style="background: rgba(156, 163, 175, 0.15); color: #D1D5DB;">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                </div>
+                <div class="app-menu-text">
+                  <div class="app-menu-name-row">
+                    <span class="app-menu-name">Cấu Hình Hệ Thống</span>
+                    <span class="app-menu-current-pill">Đang xem</span>
+                  </div>
+                  <div class="app-menu-desc">SMTP Email, thủ kho, thông báo &amp; tùy chỉnh chung</div>
+                </div>
+              </a>
+            </div>
+          </div>
+        </div>
+
+        <!-- User Profile Avatar Button -->
+        <div id="userProfileChip" class="user-profile-chip"></div>
+      </div>
+
+      <!-- Main Navigation Menu -->
+      <nav class="main-nav">
+        <a href="/" class="nav-link">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+            <polyline points="14 2 14 8 20 8"></polyline>
+            <line x1="16" y1="13" x2="8" y2="13"></line>
+            <line x1="16" y1="17" x2="8" y2="17"></line>
+          </svg>
+          Dữ Liệu Bảo Trì
+        </a>
+        <a href="/categories" class="nav-link">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+          </svg>
+          Thư Viện SOP
+        </a>
+        <a href="/dashboard" class="nav-link">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="7" height="9"></rect>
+            <rect x="14" y="3" width="7" height="5"></rect>
+            <rect x="14" y="12" width="7" height="9"></rect>
+            <rect x="3" y="16" width="7" height="5"></rect>
+          </svg>
+          Dashboard &amp; Báo Cáo
+        </a>
+        <a href="/inventory" class="nav-link">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+            <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+            <line x1="12" y1="22.08" x2="12" y2="12"></line>
+          </svg>
+          Quản Lý Tồn Kho
+        </a>
+        <a href="/internal-tasks" class="nav-link">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path>
+          </svg>
+          Công Việc Nội Bộ
+        </a>
+        <a href="/settings" class="nav-link active">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+          </svg>
+          Cấu Hình
+        </a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="app-main-compact">
+    <div class="settings-page">
+
+      <!-- Page Title -->
+      <div class="settings-page-title">
+        <div class="title-icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+          </svg>
+        </div>
+        <div>
+          <h1>Cấu Hình Hệ Thống</h1>
+          <p>Thiết lập SMTP Email, danh sách thủ kho, thông báo tự động &amp; các tùy chọn hệ thống</p>
+        </div>
+      </div>
+
+      <!-- Status Toast -->
+      <div id="settingsToast" class="settings-toast"></div>
+
+      <!-- ================================================================
+           SECTION 1: EMAIL NOTIFICATION & WAREHOUSE KEEPER
+           ================================================================ -->
+      <div class="settings-section">
+        <div class="settings-section-header">
+          <div class="section-icon" style="background: rgba(99,102,241,0.15); color: #818CF8;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+          </div>
+          <div>
+            <div class="section-title">Email Thông Báo &amp; Duyệt Đơn</div>
+            <div class="section-desc">Cấu hình SMTP server, email thủ kho và tùy chọn thông báo tự động khi tạo phiếu xuất kho</div>
+          </div>
+        </div>
+
+        <div class="settings-section-body">
+          <form id="formEmailSettings" onsubmit="submitEmailSettings(event)">
+
+            <!-- Toggle: Enable email notification -->
+            <div class="toggle-row">
+              <div>
+                <div class="toggle-row-label">Gửi Email Cho Thủ Kho Khi Tạo Phiếu</div>
+                <div class="toggle-row-desc">Tự động gửi email kèm danh sách vật tư và link duyệt 1-click cho thủ kho</div>
+              </div>
+              <label class="switch" style="margin-bottom: 0; flex-shrink: 0;">
+                <input type="checkbox" id="cfgNotifyWarehouse">
+                <span class="slider"></span>
+              </label>
+            </div>
+
+            <!-- Warehouse keeper emails -->
+            <div class="form-group" style="margin-bottom: 14px;">
+              <label class="form-label form-label-accent">Email Thủ Kho (Nhận thông báo duyệt đơn) *</label>
+              <input type="text" id="cfgWarehouseEmails" class="form-input"
+                placeholder="thukho@example.com, quanlykho@example.com">
+              <div class="form-hint">Có thể nhập nhiều email, cách nhau bằng dấu phẩy (,).</div>
+            </div>
+
+            <!-- Base App URL -->
+            <div class="form-group" style="margin-bottom: 14px;">
+              <label class="form-label">Địa Chỉ Web Ứng Dụng (Base URL gửi trong Email) *</label>
+              <input type="text" id="cfgBaseAppUrl" class="form-input"
+                placeholder="http://192.168.1.100:8082">
+              <div class="form-hint">Địa chỉ mạng LAN hoặc Domain để thủ kho bấm vào link duyệt từ điện thoại/máy tính.</div>
+            </div>
+
+            <hr class="smtp-divider">
+            <div class="smtp-section-label">⚙️ Thiết Lập Máy Chủ Gửi Mail (SMTP Toàn Hệ Thống):</div>
+
+            <!-- SMTP Host + Port -->
+            <div class="form-grid-2-1" style="margin-bottom: 12px;">
+              <div class="form-group">
+                <label class="form-label">SMTP Host</label>
+                <input type="text" id="cfgSmtpHost" class="form-input" placeholder="smtp.gmail.com" value="smtp.gmail.com">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Port</label>
+                <input type="number" id="cfgSmtpPort" class="form-input" placeholder="587" value="587">
+              </div>
+            </div>
+
+            <!-- SMTP User + Password -->
+            <div class="form-grid-2" style="margin-bottom: 12px;">
+              <div class="form-group">
+                <label class="form-label">Tài Khoản Gửi (Email / User)</label>
+                <input type="text" id="cfgSmtpUser" class="form-input" placeholder="your_email@gmail.com" autocomplete="off">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Mật Khẩu / App Password</label>
+                <input type="password" id="cfgSmtpPassword" class="form-input" placeholder="Để trống nếu không đổi" autocomplete="new-password">
+              </div>
+            </div>
+
+            <!-- From Name + From Email -->
+            <div class="form-grid-2" style="margin-bottom: 14px;">
+              <div class="form-group">
+                <label class="form-label">Tên Người Gửi Hiển Thị</label>
+                <input type="text" id="cfgSmtpFromName" class="form-input" placeholder="BOPP EM Maintenance" value="BOPP EM Maintenance">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Email Người Gửi (From Email)</label>
+                <input type="text" id="cfgSmtpFromEmail" class="form-input" placeholder="Để trống sẽ lấy tài khoản gửi">
+              </div>
+            </div>
+
+            <!-- TLS Toggle + Test button -->
+            <div class="tls-row">
+              <div class="tls-row-left">
+                <input type="checkbox" id="cfgUseTls" checked style="width: 16px; height: 16px;">
+                <label for="cfgUseTls" style="font-size: 0.82rem; color: #E5E7EB; margin-bottom: 0; cursor: pointer;">
+                  Sử dụng kết nối bảo mật TLS/STARTTLS
+                </label>
+              </div>
+              <button type="button" class="btn-secondary" style="font-size: 0.78rem; padding: 5px 12px;" onclick="testSendEmail()">
+                🧪 Gửi Thử Email
+              </button>
+            </div>
+
+            <!-- Footer actions -->
+            <div class="settings-footer">
+              <div class="settings-footer-left">
+                <span id="emailSaveStatus" style="font-size: 0.78rem; color: var(--text-muted);"></span>
+              </div>
+              <div class="settings-footer-right">
+                <button type="button" class="btn-secondary" onclick="loadEmailSettings()" style="font-size: 0.82rem;">
+                  🔄 Tải Lại
+                </button>
+                <button type="submit" class="btn-primary" id="btnSaveEmailSettings" style="font-weight: 700;">
+                  💾 Lưu Cấu Hình
+                </button>
+              </div>
+            </div>
+
+          </form>
+        </div>
+      </div>
+      <!-- END Email Section -->
+
+    </div>
+  </main>
+
+  <!-- Login Modal (shared) -->
+  <div id="loginModal" class="modal-overlay">
+    <div class="modal-card modal-login">
+      <div class="modal-header">
+        <button type="button" class="btn-modal-back" onclick="document.getElementById('btnCloseLoginModal').click()">← Quay lại</button>
+        <h3>Đăng Nhập Kỹ Thuật Viên / Quản Trị</h3>
+        <button id="btnCloseLoginModal" class="modal-close-btn">&times;</button>
+      </div>
+      <form id="loginForm" class="modal-body">
+        <div class="form-group">
+          <label for="loginUsername">Mã nhân viên / Tên đăng nhập:</label>
+          <input type="text" id="loginUsername" class="form-input" placeholder="Ví dụ: BOPP0537 hoặc admin" required>
+        </div>
+        <div class="form-group">
+          <label for="loginPassword">Mật khẩu:</label>
+          <input type="password" id="loginPassword" class="form-input" placeholder="Nhập mật khẩu..." required>
+        </div>
+        <div class="modal-actions">
+          <button type="submit" class="btn-sync" style="width: 100%; justify-content: center;">
+            <span class="btn-text">Đăng Nhập</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- User Profile Modal -->
+  <div id="userProfileModal" class="modal-overlay">
+    <div class="modal-card modal-profile-card">
+      <div class="modal-header">
+        <button type="button" class="btn-modal-back" onclick="document.getElementById('btnCloseProfileModal').click()">← Quay lại</button>
+        <h3 id="userProfileModalTitle">Thông Tin Tài Khoản</h3>
+        <button id="btnCloseProfileModal" class="modal-close-btn">&times;</button>
+      </div>
+      <div class="modal-body user-profile-modal-body">
+        <div class="profile-avatar-large" id="profileAvatarLarge">U</div>
+        <div class="profile-info-block">
+          <h4 id="profileFullName">---</h4>
+          <span id="profileRoleBadge" class="user-role-badge">---</span>
+          <div id="profileUsername" class="profile-username-tag">---</div>
+        </div>
+        <div class="modal-actions" style="width: 100%; margin-top: 14px;">
+          <button type="button" id="btnModalLogout" class="btn-logout-full">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+              <polyline points="16 17 21 12 16 7"></polyline>
+              <line x1="21" y1="12" x2="9" y2="12"></line>
+            </svg>
+            <span>Đăng Xuất Khỏi Thiết Bị</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/brand-menu.js"></script>
+  <script src="/static/app.js"></script>
+  <script>
+    // ================================================================
+    // SETTINGS PAGE — EMAIL CONFIG JS
+    // ================================================================
+
+    async function loadEmailSettings() {
+      try {
+        const res = await fetch('/api/system/email-settings');
+        if (!res.ok) return;
+        const data = await res.json();
+
+        const set = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
+        const setChk = (id, val) => { const el = document.getElementById(id); if (el) el.checked = Boolean(val); };
+
+        setChk('cfgNotifyWarehouse', data.NotifyWarehouseOnCreate);
+        set('cfgWarehouseEmails', data.WarehouseKeeperEmails);
+        set('cfgBaseAppUrl', data.BaseAppUrl || window.location.origin);
+        set('cfgSmtpHost', data.SmtpHost || 'smtp.gmail.com');
+        const portEl = document.getElementById('cfgSmtpPort');
+        if (portEl) portEl.value = data.SmtpPort || 587;
+        set('cfgSmtpUser', data.SmtpUser);
+        const pwdEl = document.getElementById('cfgSmtpPassword');
+        if (pwdEl) pwdEl.value = data.HasPassword ? '***' : '';
+        set('cfgSmtpFromName', data.SmtpFromName || 'BOPP EM Maintenance');
+        set('cfgSmtpFromEmail', data.SmtpFromEmail);
+        setChk('cfgUseTls', data.UseTls !== 0);
+
+        showToast('✅ Đã tải cấu hình từ hệ thống.', 'success', 3000);
+      } catch (e) {
+        console.error('Lỗi tải cấu hình email:', e);
+      }
+    }
+
+    async function submitEmailSettings(event) {
+      event.preventDefault();
+      const btn = document.getElementById('btnSaveEmailSettings');
+      if (btn) { btn.disabled = true; btn.textContent = '⏳ Đang lưu...'; }
+
+      try {
+        const payload = {
+          NotifyWarehouseOnCreate: document.getElementById('cfgNotifyWarehouse')?.checked ? 1 : 0,
+          WarehouseKeeperEmails: (document.getElementById('cfgWarehouseEmails')?.value || '').trim(),
+          BaseAppUrl: (document.getElementById('cfgBaseAppUrl')?.value || window.location.origin).trim(),
+          SmtpHost: (document.getElementById('cfgSmtpHost')?.value || '').trim(),
+          SmtpPort: parseInt(document.getElementById('cfgSmtpPort')?.value || '587', 10),
+          SmtpUser: (document.getElementById('cfgSmtpUser')?.value || '').trim(),
+          SmtpPassword: document.getElementById('cfgSmtpPassword')?.value || '',
+          SmtpFromName: (document.getElementById('cfgSmtpFromName')?.value || 'BOPP EM Maintenance').trim(),
+          SmtpFromEmail: (document.getElementById('cfgSmtpFromEmail')?.value || '').trim(),
+          UseTls: document.getElementById('cfgUseTls')?.checked ? 1 : 0
+        };
+
+        const token = localStorage.getItem('token') || localStorage.getItem('bopp_token');
+        const headers = { 'Content-Type': 'application/json' };
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+
+        const res = await fetch('/api/system/email-settings', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(payload)
+        });
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || 'Lỗi lưu cấu hình Email');
+
+        showToast('💾 ' + (data.message || 'Đã lưu cấu hình Email thành công!'), 'success');
+        // Re-load to reflect saved state (password masking etc.)
+        setTimeout(loadEmailSettings, 600);
+      } catch (err) {
+        showToast('❌ Lỗi: ' + err.message, 'error');
+      } finally {
+        if (btn) { btn.disabled = false; btn.textContent = '💾 Lưu Cấu Hình'; }
+      }
+    }
+
+    async function testSendEmail() {
+      const whEmails = (document.getElementById('cfgWarehouseEmails')?.value || '').trim();
+      const userEmail = (document.getElementById('cfgSmtpUser')?.value || '').trim();
+      const defaultTestEmail = whEmails ? whEmails.split(',')[0].trim() : userEmail;
+
+      const testEmail = prompt('Nhập địa chỉ email nhận thư thử nghiệm:', defaultTestEmail);
+      if (!testEmail || !testEmail.includes('@')) {
+        if (testEmail !== null) alert('Vui lòng nhập địa chỉ email hợp lệ!');
+        return;
+      }
+
+      const payload = {
+        TestEmail: testEmail.trim(),
+        SmtpHost: (document.getElementById('cfgSmtpHost')?.value || '').trim(),
+        SmtpPort: parseInt(document.getElementById('cfgSmtpPort')?.value || '587', 10),
+        SmtpUser: (document.getElementById('cfgSmtpUser')?.value || '').trim(),
+        SmtpPassword: document.getElementById('cfgSmtpPassword')?.value || '',
+        SmtpFromName: (document.getElementById('cfgSmtpFromName')?.value || 'BOPP EM Maintenance').trim(),
+        SmtpFromEmail: (document.getElementById('cfgSmtpFromEmail')?.value || '').trim(),
+        UseTls: document.getElementById('cfgUseTls')?.checked ? 1 : 0
+      };
+
+      try {
+        const token = localStorage.getItem('token') || localStorage.getItem('bopp_token');
+        const headers = { 'Content-Type': 'application/json' };
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+
+        const res = await fetch('/api/system/email-settings/test', {
+          method: 'POST', headers, body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || 'Gửi thử nghiệm thất bại');
+        showToast('🎉 ' + data.message, 'success');
+      } catch (err) {
+        showToast('❌ ' + err.message, 'error');
+      }
+    }
+
+    function showToast(msg, type, duration) {
+      const toast = document.getElementById('settingsToast');
+      if (!toast) return;
+      toast.textContent = msg;
+      toast.className = 'settings-toast ' + (type || 'success');
+      toast.style.display = 'flex';
+      clearTimeout(toast._timer);
+      toast._timer = setTimeout(() => { toast.style.display = 'none'; }, duration || 5000);
+    }
+
+    // Auto-load settings on page ready
+    document.addEventListener('DOMContentLoaded', () => {
+      loadEmailSettings();
+    });
+  </script>
+</body>
+</html>

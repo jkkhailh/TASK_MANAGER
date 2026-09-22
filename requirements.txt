@@ -1,0 +1,10 @@
+# BOPP Maintenance System - Requirements for Ubuntu Server / Production
+fastapi>=0.110.0
+uvicorn[standard]>=0.28.0
+paramiko>=3.4.0
+pydantic>=2.0.0
+python-multipart>=0.0.9
+python-dotenv>=1.0.0
+pyodbc>=5.0.0
+pymssql>=2.3.0
+cryptography>=42.0.0

@@ -1,0 +1,138 @@
+{
+  "duration_seconds": 0.29303646087646484,
+  "total_items": 1728,
+  "stock_positive_count": 1082,
+  "stock_zero_count": 646,
+  "low_stock_count": 151,
+  "by_warehouse": {
+    "DC": 117,
+    "DCPX": 54,
+    "DM": 25,
+    "GC": 78,
+    "KCM": 42,
+    "KM": 10,
+    "PT": 161,
+    "PTBS": 44,
+    "PTXL": 47,
+    "TH": 369,
+    "TX": 7,
+    "VPP": 17,
+    "VPPBS": 1,
+    "VT": 616,
+    "VTNL": 140
+  },
+  "samples_positive": [
+    {
+      "WHouseID": "DC",
+      "WHouseText": "Công cụ, dụng cụ tồn kho",
+      "ItemID": "10CK02-031",
+      "ItemText": "Kìm bấm cos HD16L ĐL",
+      "Unit": "CAI",
+      "StorageID": "TU-DC",
+      "CurrentStock": "2.0000",
+      "QtyMin": "0.0000",
+      "QtyMax": "0.0000"
+    },
+    {
+      "WHouseID": "DC",
+      "WHouseText": "Công cụ, dụng cụ tồn kho",
+      "ItemID": "10CK02-050",
+      "ItemText": "Kìm mở phe trong mũi thẳng SATA 72032",
+      "Unit": "CAI",
+      "StorageID": "TU-DC",
+      "CurrentStock": "2.0000",
+      "QtyMin": "0.0000",
+      "QtyMax": "0.0000"
+    },
+    {
+      "WHouseID": "DC",
+      "WHouseText": "Công cụ, dụng cụ tồn kho",
+      "ItemID": "10CK02-078",
+      "ItemText": "Máy thủy bình laser Laisai - Model LSG 686SPD",
+      "Unit": "CAI",
+      "StorageID": "ZZZ",
+      "CurrentStock": "1.0000",
+      "QtyMin": "0.0000",
+      "QtyMax": "0.0000"
+    },
+    {
+      "WHouseID": "DC",
+      "WHouseText": "Công cụ, dụng cụ tồn kho",
+      "ItemID": "10CK02-098",
+      "ItemText": "Thước cặp cơ khí 0-600mm Mitutoyo (530-501)",
+      "Unit": "CAI",
+      "StorageID": "ZZZ",
+      "CurrentStock": "1.0000",
+      "QtyMin": "0.0000",
+      "QtyMax": "0.0000"
+    },
+    {
+      "WHouseID": "DC",
+      "WHouseText": "Công cụ, dụng cụ tồn kho",
+      "ItemID": "10CK02-120",
+      "ItemText": "Thước Nivo cân máy, Model: 4903-200A",
+      "Unit": "CAI",
+      "StorageID": "PL5.2",
+      "CurrentStock": "1.0000",
+      "QtyMin": "0.0000",
+      "QtyMax": "0.0000"
+    }
+  ],
+  "samples_zero": [
+    {
+      "WHouseID": "DC",
+      "WHouseText": "Công cụ, dụng cụ tồn kho",
+      "ItemID": "10CK02-074",
+      "ItemText": "Máy mài góc Makita 1T M9513B",
+      "Unit": "CAI",
+      "StorageID": "TU-DC",
+      "CurrentStock": "0.0000",
+      "QtyMin": "0.0000",
+      "QtyMax": "0.0000"
+    },
+    {
+      "WHouseID": "DC",
+      "WHouseText": "Công cụ, dụng cụ tồn kho",
+      "ItemID": "10CK02-080",
+      "ItemText": "Mỏ lết 10\" Stanley STMT87433-8",
+      "Unit": "CAI",
+      "StorageID": "ZZZ",
+      "CurrentStock": "0.0000",
+      "QtyMin": "0.0000",
+      "QtyMax": "0.0000"
+    },
+    {
+      "WHouseID": "DC",
+      "WHouseText": "Công cụ, dụng cụ tồn kho",
+      "ItemID": "10CK02-091",
+      "ItemText": "Tay quay Taro M4-12",
+      "Unit": "CAY",
+      "StorageID": "TU-DC",
+      "CurrentStock": "0.0000",
+      "QtyMin": "0.0000",
+      "QtyMax": "0.0000"
+    },
+    {
+      "WHouseID": "DC",
+      "WHouseText": "Công cụ, dụng cụ tồn kho",
+      "ItemID": "10CK02-176",
+      "ItemText": "Đầu chuyển 1/2\" sang 3/4\"",
+      "Unit": "CAI",
+      "StorageID": "TU-DC",
+      "CurrentStock": "0.0000",
+      "QtyMin": "0.0000",
+      "QtyMax": "0.0000"
+    },
+    {
+      "WHouseID": "DC",
+      "WHouseText": "Công cụ, dụng cụ tồn kho",
+      "ItemID": "10CK02-181",
+      "ItemText": "Đầu chuyển 3/4\" sang 1/2\" TOP",
+      "Unit": "CAI",
+      "StorageID": "TU-DC",
+      "CurrentStock": "0.0000",
+      "QtyMin": "0.0000",
+      "QtyMax": "0.0000"
+    }
+  ]
+}

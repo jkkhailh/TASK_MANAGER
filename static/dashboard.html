@@ -1,0 +1,40 @@
+import re
+import os
+
+files = [
+    'static/index.html',
+    'static/categories.html',
+    'static/dashboard.html',
+    'static/inventory.html',
+    'static/internal-tasks.html'
+]
+
+forbidden_words = ['123.25.239.13', 'PM2026BOPP', 'SQL Server', 'local_maintenance.db', 'NAS Synology']
+
+print("=== VERIFYING DOM AND STRINGS ===")
+for fpath in files:
+    with open(fpath, 'r', encoding='utf-8') as f:
+        content = f.read()
+
+    has_header = 'class="app-header"' in content or "class='app-header'" in content
+    has_brand_row = 'header-brand-row' in content
+    has_user_chip = 'id="userProfileChip"' in content
+    has_main_nav = 'class="main-nav"' in content
+
+    back_btn_count = len(re.findall(r'class="[^"]*btn-modal-back[^"]*"', content))
+    modal_count = len(re.findall(r'class="[^"]*(?:modal-overlay|inv-modal-overlay)[^"]*"', content))
+
+    found_forbidden = []
+    for word in forbidden_words:
+        if word.lower() in content.lower():
+            found_forbidden.append(word)
+
+    print(f"\nFile: {fpath}")
+    print(f"  app-header: {has_header}")
+    print(f"  header-brand-row: {has_brand_row}")
+    print(f"  userProfileChip: {has_user_chip}")
+    print(f"  main-nav: {has_main_nav}")
+    print(f"  Modals: {modal_count} | Back buttons: {back_btn_count}")
+    print(f"  Forbidden words found: {found_forbidden if found_forbidden else 'None (CLEAN)'}")
+
+print("\n=== ALL CHECKS FINISHED ===")

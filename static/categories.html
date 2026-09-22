@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Thư Viện Hạng Mục &amp; Ảnh Mẫu SOP - BOPP Maintenance</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="page-categories">
+  <!-- Toast Notification Container -->
+  <div id="toastContainer" class="toast-container"></div>
+
+  <!-- Header & Navigation -->
+  <header class="app-header">
+    <div class="header-content">
+      <div class="brand-area">
+        <div class="brand-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+          </svg>
+        </div>
+        <div>
+          <h1 class="brand-title">BOPP EM <span>Maintenance</span></h1>
+          <div class="system-status">
+            <span class="status-dot"></span>
+            <span>Thư viện tiêu chuẩn SOP &amp; Ảnh mẫu NAS</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Main Navigation Menu -->
+      <nav class="main-nav">
+        <a href="/" class="nav-link">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+            <polyline points="14 2 14 8 20 8"></polyline>
+            <line x1="16" y1="13" x2="8" y2="13"></line>
+            <line x1="16" y1="17" x2="8" y2="17"></line>
+            <polyline points="10 9 9 9 8 9"></polyline>
+          </svg>
+          Dữ Liệu Bảo Trì
+        </a>
+        <a href="/categories" class="nav-link active">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+          </svg>
+          Thư Viện Hạng Mục &amp; Ảnh Mẫu
+        </a>
+        <a href="/dashboard" class="nav-link">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="7" height="9"></rect>
+            <rect x="14" y="3" width="7" height="5"></rect>
+            <rect x="14" y="12" width="7" height="9"></rect>
+            <rect x="3" y="16" width="7" height="5"></rect>
+          </svg>
+          Dashboard &amp; Đồng Bộ
+        </a>
+      </nav>
+
+      <!-- User Chip -->
+      <div id="userProfileChip" class="user-profile-chip">
+        <!-- Injected dynamically by JS -->
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="app-main">
+    <!-- Unified Search & Quick Filter Toolbar -->
+    <section class="toolbar-card">
+      <div class="unified-search-row">
+        <!-- Prominent Unified Search Input -->
+        <div class="search-box-unified">
+          <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+          <input type="text" id="tmplSearchInput" placeholder="Tìm kiếm theo mã, tên hạng mục lớn, công việc chi tiết, cụm máy, vật tư, SOP...">
+          <button id="btnClearTmplSearch" class="btn-clear" title="Xóa từ khóa">&times;</button>
+          <span class="search-badge-counter" id="searchMatchCount" style="display: none;">0 kết quả</span>
+        </div>
+
+        <!-- Filters & Actions -->
+        <div class="filter-controls-group">
+          <!-- Node Filter Dropdown -->
+          <div class="filter-item">
+            <select id="filterNodeSelect" class="form-control filter-select">
+              <option value="">-- Tất cả cụm máy --</option>
+            </select>
+          </div>
+
+          <!-- Service Filter Dropdown -->
+          <div class="filter-item">
+            <select id="filterServiceSelect" class="form-control filter-select">
+              <option value="">-- Tất cả thao tác --</option>
+            </select>
+          </div>
+
+          <!-- Image Status Filter -->
+          <div class="filter-item">
+            <select id="filterImageStatus" class="form-control filter-select">
+              <option value="">-- Tất cả trạng thái ảnh --</option>
+              <option value="has_sample">Đã có ảnh mẫu SOP</option>
+              <option value="no_sample">Chưa có ảnh mẫu SOP</option>
+              <option value="has_proof">Có ảnh thực tế KTV</option>
+            </select>
+          </div>
+
+          <!-- Action Buttons -->
+          <button id="btnRefreshTmpl" class="btn-secondary btn-icon-text" title="Tải lại danh sách">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+            </svg>
+            <span>Làm Mới</span>
+          </button>
+
+          <button id="btnSyncERPWorks" class="btn-primary btn-icon-text" style="background: #4F46E5;" title="Kéo danh mục và chi tiết mới nhất từ SQL Server">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="7 10 12 15 17 10"></polyline>
+              <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+            <span>Đồng Bộ ERP</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Master-Detail 2-Column Layout -->
+    <div class="category-layout-container">
+      <!-- Left Column: Master Categories (161 danh mục) -->
+      <aside class="category-master-sidebar">
+        <div class="sidebar-header">
+          <div class="sidebar-title-wrap">
+            <div class="sidebar-title">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="3" width="7" height="7"></rect>
+                <rect x="14" y="3" width="7" height="7"></rect>
+                <rect x="14" y="14" width="7" height="7"></rect>
+                <rect x="3" y="14" width="7" height="7"></rect>
+              </svg>
+              <span>Hạng Mục Bảo Trì</span>
+            </div>
+            <span class="master-total-badge" id="masterTotalBadge">161</span>
+          </div>
+          <div class="sidebar-subtext">Nhấp vào danh mục để xem chi tiết</div>
+        </div>
+
+        <!-- "Tất Cả Hạng Mục" Button -->
+        <div class="master-card master-card-all active" id="btnSelectAllWorks" data-work-id="">
+          <div class="master-card-header">
+            <span class="badge-workid" style="background: rgba(99, 102, 241, 0.2); color: #818CF8;">TẤT CẢ</span>
+            <span class="master-task-badge" id="allWorkTasksBadge">1,153 việc</span>
+          </div>
+          <div class="master-card-title">Tất cả hạng mục bảo trì</div>
+          <div class="master-card-meta">
+            <span>Toàn bộ 161 danh mục hệ thống</span>
+          </div>
+        </div>
+
+        <!-- Scrollable Category List -->
+        <div class="master-work-list" id="masterWorkList">
+          <div class="master-loading-state">
+            <div class="spinner" style="margin: 20px auto 10px;"></div>
+            <span>Đang tải danh mục lớn...</span>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Right Column: Detail Tasks Content -->
+      <section class="category-detail-content">
+        <!-- Selected Category Header Card (Banner) -->
+        <div id="categoryDetailCard" class="card category-detail-card">
+          <div class="category-detail-banner-main">
+            <div>
+              <div class="category-badges-row">
+                <span id="cardWorkID" class="badge-node" style="font-size: 13px; font-weight: 700; background: #4F46E5; color: white;">PS1_4320</span>
+                <span id="cardModelID" class="badge-service" style="font-size: 12px;">Kiểu máy: PS</span>
+                <span id="cardWorkType" style="font-size: 12px; color: var(--text-muted);">Phân loại: 1BT</span>
+              </div>
+              <h2 id="cardWorkText" class="category-banner-title">Bảo dưỡng máy chia lớn -(1/2 Năm)</h2>
+              <div class="category-banner-meta">
+                <span>Chu kỳ: <strong id="cardCycleHour" style="color: #60A5FA;">4,320 giờ</strong> (<span id="cardCycleDay">0</span> ngày)</span>
+                <span>Số công việc chi tiết: <strong id="cardTaskCount" style="color: #34D399;">5 công việc</strong></span>
+              </div>
+            </div>
+
+            <!-- Mini Summary Stats Chips -->
+            <div class="category-banner-stats">
+              <div class="banner-stat-chip">
+                <span class="stat-label">Ảnh Mẫu SOP</span>
+                <span class="stat-val" id="bannerStatSampleCount" style="color: #38BDF8;">0</span>
+              </div>
+              <div class="banner-stat-chip">
+                <span class="stat-label">Ảnh Thực Tế KTV</span>
+                <span class="stat-val" id="bannerStatProofCount" style="color: #34D399;">0</span>
+              </div>
+              <button id="btnClearSelectedWork" class="btn-secondary" style="font-size: 12px; padding: 7px 12px; align-self: flex-start;">
+                &larr; Xem tất cả hạng mục
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Info Banner & Counter -->
+        <div class="detail-info-bar">
+          <span class="badge-counter" id="tmplCounter">
+            Đang tải dữ liệu...
+          </span>
+          <div class="storage-indicator">
+            <span class="status-dot" style="background: #10B981;"></span>
+            <span>Lưu trữ ảnh mẫu chuẩn SOP trên NAS Synology</span>
+          </div>
+        </div>
+
+        <!-- Detail Tasks Data Table -->
+        <div class="table-responsive master-detail-table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th style="width: 40px; text-align: center;">STT</th>
+                <th id="thParentWork" style="min-width: 150px;">Hạng Mục Lớn</th>
+                <th style="min-width: 130px;">Cụm Máy</th>
+                <th style="min-width: 100px;">Thao Tác</th>
+                <th style="min-width: 220px;">Chi Tiết Công Việc / Ghi Chú</th>
+                <th style="min-width: 180px;">Phụ Tùng / Vật Tư Chuẩn</th>
+                <th style="min-width: 110px; text-align: center;">Ảnh Mẫu SOP</th>
+                <th style="min-width: 125px; text-align: center;">Ảnh Thực Tế KTV</th>
+                <th style="min-width: 200px;">Tiêu Chuẩn SOP &amp; Góc Chụp</th>
+                <th style="width: 110px; text-align: center;">Thao Tác</th>
+              </tr>
+            </thead>
+            <tbody id="tmplTableBody">
+              <tr>
+                <td colspan="10" style="text-align: center; padding: 40px; color: var(--text-muted);">
+                  <div class="spinner" style="margin: 0 auto 10px;"></div>
+                  Đang tải danh mục hạng mục...
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <!-- Modal 1: Xem Lại Ảnh Thực Tế Kỹ Thuật Viên Chụp & Đặt Làm Mẫu SOP -->
+  <div id="proofHistoryModal" class="modal-overlay">
+    <div class="modal-card modal-proof-history">
+      <div class="modal-header">
+        <div>
+          <h3 id="modalProofTitle">Thư Viện Ảnh Thực Tế Kỹ Thuật Viên Chụp</h3>
+          <div id="modalProofSub" style="font-size: 12px; color: #94A3B8; margin-top: 4px;">---</div>
+        </div>
+        <button id="btnCloseProofModal" class="modal-close-btn">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="proof-modal-intro">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#38BDF8" stroke-width="2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="16" x2="12" y2="12"></line>
+            <line x1="12" y1="8" x2="12.01" y2="8"></line>
+          </svg>
+          <span>Dưới đây là các hình ảnh thực tế nhân viên kỹ thuật đã chụp khi thực hiện bảo dưỡng. Bạn có thể nhấn <strong>"⭐ Đặt Làm Mẫu SOP"</strong> trên bất kỳ ảnh nào để chọn làm ảnh mẫu chuẩn.</span>
+        </div>
+
+        <div id="proofGridContainer" class="proof-grid-container">
+          <!-- Injected dynamically by JS -->
+        </div>
+      </div>
+      <div class="modal-actions" style="justify-content: flex-end;">
+        <button type="button" id="btnDismissProofModal" class="btn-secondary">Đóng</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 2: Upload / Cập Nhật Ảnh Mẫu Chuẩn Trực Tiếp -->
+  <div id="sampleUploadModal" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="modalTmplTitle">Cập Nhật Ảnh Mẫu Hạng Mục</h3>
+        <button id="btnCloseSampleModal" class="modal-close-btn">&times;</button>
+      </div>
+      <form id="sampleUploadForm" class="modal-body">
+        <input type="hidden" id="modalTmplId">
+        <div class="form-group">
+          <label>Cụm bộ phận &amp; Thao tác:</label>
+          <div id="modalTmplSub" style="font-weight: 600; color: #A5B4FC;">---</div>
+        </div>
+
+        <div class="form-group">
+          <label for="modalGuidelineInput">Hướng dẫn tiêu chuẩn / Vị trí góc chụp:</label>
+          <textarea id="modalGuidelineInput" rows="3" class="form-textarea" placeholder="Nhập hướng dẫn kỹ thuật, vị trí cần chụp cận cảnh, tiêu chuẩn đạt/không đạt..."></textarea>
+        </div>
+
+        <div class="form-group">
+          <label>Chọn hình ảnh mẫu chuẩn (lưu trực tiếp lên NAS):</label>
+          <div class="file-drop-area" id="sampleDropArea">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="17 8 12 3 7 8"></polyline>
+              <line x1="12" y1="3" x2="12" y2="15"></line>
+            </svg>
+            <p>Kéo thả ảnh vào đây hoặc nhấp để chọn file ảnh</p>
+            <span class="file-hint">Định dạng JPG, PNG, WEBP (Lưu vào NAS Synology)</span>
+            <input type="file" id="sampleFileInput" accept="image/*" style="display: none;">
+          </div>
+          <div id="sampleFilePreview" class="file-preview-box" style="display: none;"></div>
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" id="btnCancelSampleModal" class="btn-secondary">Hủy Bỏ</button>
+          <button type="submit" id="btnSubmitSampleModal" class="btn-sync">
+            <span class="btn-text">Lưu Lên NAS Synology</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal 3: Lightbox Zoom Modal -->
+  <div id="lightboxModal" class="lightbox-overlay">
+    <div class="lightbox-content">
+      <button id="btnCloseLightbox" class="lightbox-close">&times;</button>
+      <img id="lightboxImg" src="" alt="Ảnh phóng to">
+      <div id="lightboxCaption" class="lightbox-caption"></div>
+    </div>
+  </div>
+
+  <!-- Modal 4: Login Modal -->
+  <div id="loginModal" class="modal-overlay">
+    <div class="modal-card modal-login">
+      <div class="modal-header">
+        <h3>Đăng Nhập Hệ Thống Bảo Dưỡng</h3>
+        <button id="btnCloseLoginModal" class="modal-close-btn">&times;</button>
+      </div>
+      <form id="loginForm" class="modal-body">
+        <div class="form-group">
+          <label for="loginUsername">Tên đăng nhập / Mã nhân viên:</label>
+          <input type="text" id="loginUsername" class="form-input" placeholder="Ví dụ: BOPP0537 hoặc admin" required>
+        </div>
+        <div class="form-group">
+          <label for="loginPassword">Mật khẩu:</label>
+          <input type="password" id="loginPassword" class="form-input" placeholder="Nhập mật khẩu..." required>
+        </div>
+
+        <div class="quick-demo-users">
+          <span style="font-size: 0.75rem; color: var(--text-muted); display: block; margin-bottom: 6px;">Tài khoản mẫu nhanh:</span>
+          <button type="button" class="quick-user-btn" data-user="BOPP0537" data-pass="123456">KTV Đạt (BOPP0537)</button>
+          <button type="button" class="quick-user-btn" data-user="BOPP0048" data-pass="123456">Giám sát Thuật (BOPP0048)</button>
+          <button type="button" class="quick-user-btn" data-user="admin" data-pass="admin@123">Quản trị viên (admin)</button>
+        </div>
+
+        <div class="modal-actions">
+          <button type="submit" class="btn-sync" style="width: 100%; justify-content: center;">
+            <span class="btn-text">Đăng Nhập</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="/static/categories.js"></script>
+</body>
+</html>

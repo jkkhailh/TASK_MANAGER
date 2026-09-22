@@ -1,0 +1,126 @@
+{
+  "duration_seconds": 0.34224796295166016,
+  "total_active_stock_items": 824,
+  "by_warehouse": {
+    "DC": 99,
+    "DCPX": 54,
+    "DM": 22,
+    "PT": 133,
+    "PTXL": 4,
+    "VPP": 7,
+    "VT": 505
+  },
+  "low_stock_count": 32,
+  "samples": [
+    {
+      "WHouseID": "DC",
+      "WHouseText": "Công cụ, dụng cụ tồn kho",
+      "ItemID": "10CK02-031",
+      "ItemText": "Kìm bấm cos HD16L ĐL",
+      "Unit": "CAI",
+      "StorageID": "TU-DC",
+      "CurrentStock": "2.0000",
+      "QtyMin": "0.0000",
+      "QtyMax": "0.0000"
+    },
+    {
+      "WHouseID": "DC",
+      "WHouseText": "Công cụ, dụng cụ tồn kho",
+      "ItemID": "10CK02-050",
+      "ItemText": "Kìm mở phe trong mũi thẳng SATA 72032",
+      "Unit": "CAI",
+      "StorageID": "TU-DC",
+      "CurrentStock": "2.0000",
+      "QtyMin": "0.0000",
+      "QtyMax": "0.0000"
+    },
+    {
+      "WHouseID": "DC",
+      "WHouseText": "Công cụ, dụng cụ tồn kho",
+      "ItemID": "10CK02-078",
+      "ItemText": "Máy thủy bình laser Laisai - Model LSG 686SPD",
+      "Unit": "CAI",
+      "StorageID": "ZZZ",
+      "CurrentStock": "1.0000",
+      "QtyMin": "0.0000",
+      "QtyMax": "0.0000"
+    },
+    {
+      "WHouseID": "DC",
+      "WHouseText": "Công cụ, dụng cụ tồn kho",
+      "ItemID": "10CK02-098",
+      "ItemText": "Thước cặp cơ khí 0-600mm Mitutoyo (530-501)",
+      "Unit": "CAI",
+      "StorageID": "ZZZ",
+      "CurrentStock": "1.0000",
+      "QtyMin": "0.0000",
+      "QtyMax": "0.0000"
+    },
+    {
+      "WHouseID": "DC",
+      "WHouseText": "Công cụ, dụng cụ tồn kho",
+      "ItemID": "10CK02-120",
+      "ItemText": "Thước Nivo cân máy, Model: 4903-200A",
+      "Unit": "CAI",
+      "StorageID": "PL5.2",
+      "CurrentStock": "1.0000",
+      "QtyMin": "0.0000",
+      "QtyMax": "0.0000"
+    },
+    {
+      "WHouseID": "DC",
+      "WHouseText": "Công cụ, dụng cụ tồn kho",
+      "ItemID": "10CK02-121",
+      "ItemText": "Thước Nivo khung (thước thủy vuông) RSK, Model: 541-1502",
+      "Unit": "CAI",
+      "StorageID": "PL5.2",
+      "CurrentStock": "1.0000",
+      "QtyMin": "0.0000",
+      "QtyMax": "0.0000"
+    },
+    {
+      "WHouseID": "DC",
+      "WHouseText": "Công cụ, dụng cụ tồn kho",
+      "ItemID": "10CK02-124",
+      "ItemText": "Nivo cân máy Vogel 160mm (360251)",
+      "Unit": "CAI",
+      "StorageID": "PL5.2",
+      "CurrentStock": "1.0000",
+      "QtyMin": "0.0000",
+      "QtyMax": "0.0000"
+    },
+    {
+      "WHouseID": "DC",
+      "WHouseText": "Công cụ, dụng cụ tồn kho",
+      "ItemID": "10CK02-126",
+      "ItemText": "Nivo khung (thước thủy vuông) đo cân bằng Vogel 150x150mm (360351)",
+      "Unit": "CAI",
+      "StorageID": "PL5.2",
+      "CurrentStock": "1.0000",
+      "QtyMin": "0.0000",
+      "QtyMax": "0.0000"
+    },
+    {
+      "WHouseID": "DC",
+      "WHouseText": "Công cụ, dụng cụ tồn kho",
+      "ItemID": "10CK02-134",
+      "ItemText": "Vít bake Stanley PH0x150mm STMT60803-8",
+      "Unit": "CAI",
+      "StorageID": "ZZZ",
+      "CurrentStock": "1.0000",
+      "QtyMin": "0.0000",
+      "QtyMax": "0.0000"
+    },
+    {
+      "WHouseID": "DC",
+      "WHouseText": "Công cụ, dụng cụ tồn kho",
+      "ItemID": "10CK02-136",
+      "ItemText": "Vít bake Stanley PH2x250mm STMT60813-8",
+      "Unit": "CAI",
+      "StorageID": "ZZZ",
+      "CurrentStock": "1.0000",
+      "QtyMin": "0.0000",
+      "QtyMax": "0.0000"
+    }
+  ]
+}
