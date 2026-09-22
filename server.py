@@ -1147,9 +1147,18 @@ def get_order_execution_matrix(entry_id: str):
                     "UpdatedAt": None
                 }
 
+        # Lấy tên hiển thị của máy (MachineText)
+        machine_names = {}
+        for m_id in machine_list:
+            c.execute("SELECT MachineText FROM CL_tblMacList WHERE MachineID = ?", (m_id,))
+            m_row = c.fetchone()
+            machine_names[m_id] = m_row["MachineText"] if m_row and m_row["MachineText"] else m_id
+
         return {
             "order": order,
+            "machines": machine_list,
             "machine_list": machine_list,
+            "machine_names": machine_names,
             "tasks_by_machine": tasks_by_machine,
             "machine_stats": machine_stats,
             "machine_hours": machine_hours,
@@ -1882,9 +1891,44 @@ def normalize_machine_id(c, mac: Optional[str]) -> str:
 
 def generate_next_task_code(c, now) -> str:
     prefix = f"IWO-{now.strftime('%y%m')}"
-    c.execute("SELECT COUNT(*) FROM internal_work_orders WHERE TaskCode LIKE ?", (f"{prefix}%",))
-    seq = (c.fetchone()[0] or 0) + 1
-    return f"{prefix}-{seq:04d}"
+    c.execute("SELECT TaskCode FROM internal_work_orders WHERE TaskCode LIKE ? ORDER BY TaskCode DESC LIMIT 100", (f"{prefix}%",))
+    rows = c.fetchall()
+    max_seq = 0
+    for r in rows:
+        code_val = r[0] if isinstance(r, (list, tuple)) else r["TaskCode"]
+        try:
+            num = int(code_val.split("-")[-1])
+            if num > max_seq:
+                max_seq = num
+        except Exception:
+            pass
+    seq = max_seq + 1
+    while True:
+        candidate = f"{prefix}-{seq:04d}"
+        c.execute("SELECT 1 FROM internal_work_orders WHERE TaskCode = ?", (candidate,))
+        if not c.fetchone():
+            return candidate
+        seq += 1
+
+def generate_next_template_code(c) -> str:
+    c.execute("SELECT TemplateCode FROM internal_task_recurring_templates WHERE TemplateCode LIKE 'REC-%' ORDER BY TemplateCode DESC LIMIT 100")
+    rows = c.fetchall()
+    max_seq = 0
+    for r in rows:
+        code_val = r[0] if isinstance(r, (list, tuple)) else r["TemplateCode"]
+        try:
+            num = int(code_val.split("-")[-1])
+            if num > max_seq:
+                max_seq = num
+        except Exception:
+            pass
+    seq = max_seq + 1
+    while True:
+        candidate = f"REC-{seq:04d}"
+        c.execute("SELECT 1 FROM internal_task_recurring_templates WHERE TemplateCode = ?", (candidate,))
+        if not c.fetchone():
+            return candidate
+        seq += 1
 
 
 @app.get("/api/internal-tasks/employees")
@@ -4211,43 +4255,7 @@ def create_internal_task(
         conn.close()
 
 
-@app.get("/api/internal-tasks/{task_id}")
-def get_internal_task_detail(task_id: int):
-    """Chi tiết công việc nội bộ kèm hình ảnh và danh sách hạng mục con"""
-    conn = get_connection()
-    c = conn.cursor()
-    try:
-        c.execute("""
-            SELECT w.*, 
-                   (SELECT COUNT(*) FROM internal_task_items WHERE TaskID = w.id) as total_items,
-                   (SELECT COUNT(*) FROM internal_task_items WHERE TaskID = w.id AND Status = 'COMPLETED') as completed_items
-            FROM internal_work_orders w
-            WHERE w.id = ?
-        """, (task_id,))
-        row = c.fetchone()
-        if not row:
-            raise HTTPException(status_code=404, detail="Không tìm thấy công việc.")
-        task = dict(row)
 
-        # Checklist items
-        c.execute("""
-            SELECT * FROM internal_task_items
-            WHERE TaskID = ?
-            ORDER BY ItemOrder ASC, id ASC
-        """, (task_id,))
-        task["items"] = [dict(r) for r in c.fetchall()]
-
-        # Images
-        c.execute("""
-            SELECT * FROM internal_work_images
-            WHERE TaskID = ?
-            ORDER BY id ASC
-        """, (task_id,))
-        task["images"] = [dict(r) for r in c.fetchall()]
-
-        return task
-    finally:
-        conn.close()
 
 
 @app.post("/api/internal-tasks/{task_id}/items")
